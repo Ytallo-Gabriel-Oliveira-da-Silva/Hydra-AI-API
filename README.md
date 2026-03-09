@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hydra AI API
 
-## Getting Started
+Aplicacao Next.js com autenticacao, dashboard, planos, historico e rotas para chat, imagem, audio, busca e video.
 
-First, run the development server:
+## Rodando localmente
+
+1. Instale as dependencias:
+
+```bash
+npm install
+```
+
+2. Crie seu arquivo de ambiente a partir de `.env.example`.
+
+3. Rode as migrations e o seed local se necessario:
+
+```bash
+npx prisma migrate dev
+npm run db:seed
+```
+
+4. Inicie o servidor:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variaveis de ambiente
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Use `.env.example` como referencia. Em producao, configure essas variaveis no provedor de deploy:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `DATABASE_URL`
+- `GROQ_API_KEY`
+- `GROQ_CHAT_MODEL`
+- `GROQ_STT_MODEL`
+- `STABILITY_API_KEY`
+- `TAVILY_API_KEY`
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID`
+- `RUNWAY_API_KEY`
+- `JWT_SECRET`
+- `RESET_TOKEN_SECRET`
 
-## Learn More
+## Deploy na Vercel
 
-To learn more about Next.js, take a look at the following resources:
+Este projeto funciona bem na Vercel, mas nao com SQLite local em producao. O valor `file:./data.db` serve apenas para desenvolvimento local.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Antes de publicar:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Escolha um banco gerenciado compativel com Prisma.
+2. Troque `DATABASE_URL` por uma conexao remota.
+3. Rode as migrations nesse banco.
+4. Configure as variaveis de ambiente na Vercel.
 
-## Deploy on Vercel
+Guia recomendado: veja `docs/vercel-deploy.md`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Banco recomendado para Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+As opcoes mais simples para esse projeto sao:
+
+- Vercel Postgres
+- Neon
+- Supabase Postgres
+- Railway Postgres
+
+Se voce quiser persistencia simples com latencia baixa e custo pequeno, eu recomendaria começar com Neon ou Vercel Postgres.
