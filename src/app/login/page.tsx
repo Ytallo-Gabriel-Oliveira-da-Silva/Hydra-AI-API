@@ -133,6 +133,13 @@ export default function LoginPage() {
                   Criar conta
                 </button>
               </p>
+
+              <p className="text-sm text-slate-300">
+                Esqueceu a senha?{' '}
+                <button type="button" onClick={() => router.push("/reset-password")} className="text-indigo-200 underline">
+                  Recuperar acesso
+                </button>
+              </p>
             </div>
           </div>
         </form>

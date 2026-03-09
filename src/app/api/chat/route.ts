@@ -4,11 +4,39 @@ import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/li
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat } from "@/lib/providers/groq";
+import { stabilityGenerateImage } from "@/lib/providers/stability";
 
 const schema = z.object({
   message: z.string().min(1),
   conversationId: z.string().optional(),
 });
+
+const IMAGE_MESSAGE_PREFIX = "__hydra_image__:";
+
+function isImageRequest(message: string) {
+  if (/\bprompt\b/i.test(message)) return false;
+
+  return /(?:^|\b)(?:gere|gera|crie|cria|faça|faca|produza|desenhe|renderize)(?:[\s\S]{0,80})\b(?:imagem|foto|arte|ilustração|ilustracao|desenho|render)\b/i.test(message)
+    || /\b(?:imagem|foto|arte|ilustração|ilustracao|desenho|render)\b(?:[\s\S]{0,40})\b(?:de|do|da)\b/i.test(message);
+}
+
+function buildImageAssistantContent(prompt: string, url: string) {
+  return `${IMAGE_MESSAGE_PREFIX}${JSON.stringify({ prompt, url })}`;
+}
+
+async function ensureConversation(userId: string, conversationId: string | undefined, title: string) {
+  if (conversationId) return conversationId;
+
+  const conv = await prisma.conversation.create({
+    data: {
+      userId,
+      title: title.slice(0, 60),
+      messages: { create: [] },
+    },
+  });
+
+  return conv.id;
+}
 
 function systemPrompt(country: string) {
   return (
@@ -41,24 +69,28 @@ export async function POST(req: NextRequest) {
     const quota = await canUse(user, "chat", monthKey);
     if (!quota.allowed) throw new ApiError("Limite de chat atingido para seu plano", 403);
 
-    const system = systemPrompt(country);
-    const reply = await generateChatReply([
-      { role: "system", content: system },
-      { role: "user", content: message },
-    ]);
+    let reply: string;
+    let convId: string;
 
-    await incrementUsage(user.id, "chat", monthKey);
+    if (isImageRequest(message)) {
+      const imageQuota = await canUse(user, "image", monthKey);
+      if (!imageQuota.allowed) throw new ApiError("Limite de imagem atingido para seu plano", 403);
+      if (!process.env.STABILITY_API_KEY) throw new ApiError("STABILITY_API_KEY ausente", 500);
 
-    let convId = conversationId;
-    if (!convId) {
-      const conv = await prisma.conversation.create({
-        data: {
-          userId: user.id,
-          title: message.slice(0, 60),
-          messages: { create: [] },
-        },
-      });
-      convId = conv.id;
+      const imageUrl = await stabilityGenerateImage(message);
+      await incrementUsage(user.id, "image", monthKey);
+      await prisma.imageAsset.create({ data: { userId: user.id, title: message.slice(0, 80), url: imageUrl } });
+      reply = buildImageAssistantContent(message, imageUrl);
+      convId = await ensureConversation(user.id, conversationId, message);
+    } else {
+      const system = systemPrompt(country);
+      reply = await generateChatReply([
+        { role: "system", content: system },
+        { role: "user", content: message },
+      ]);
+
+      await incrementUsage(user.id, "chat", monthKey);
+      convId = await ensureConversation(user.id, conversationId, message);
     }
 
     await prisma.message.createMany({
@@ -68,7 +100,11 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    return NextResponse.json({ reply, conversationId: convId });
+    const imageUrl = reply.startsWith(IMAGE_MESSAGE_PREFIX)
+      ? (JSON.parse(reply.slice(IMAGE_MESSAGE_PREFIX.length)) as { url: string }).url
+      : null;
+
+    return NextResponse.json({ reply, conversationId: convId, imageUrl });
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro no chat";

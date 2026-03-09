@@ -14,7 +14,7 @@ async function main() {
       badgeTo: '#8b5a2b',
       chatLimit: 15,
       imageLimit: 2,
-      audioLimit: 0,
+      audioLimit: 10,
       videoLimit: 0,
     },
     {

@@ -37,6 +37,8 @@ export function SiteFooter({ tone = "default" }: SiteFooterProps) {
             <Link href="/plans" className="block transition hover:text-white">Planos</Link>
             <Link href="/login" className="block transition hover:text-white">Entrar</Link>
             <Link href="/register" className="block transition hover:text-white">Criar conta</Link>
+            <Link href="/support" className="block transition hover:text-white">Suporte</Link>
+            <Link href="/reset-password" className="block transition hover:text-white">Recuperar senha</Link>
           </div>
         </div>
 

@@ -7,6 +7,23 @@ import { prisma } from "@/lib/db";
 
 const schema = z.object({ prompt: z.string().min(5) });
 
+export async function GET(req: NextRequest) {
+  try {
+    const user = await requireUser(req);
+    const images = await prisma.imageAsset.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
+
+    return NextResponse.json({ images });
+  } catch (err: unknown) {
+    const status = err instanceof ApiError ? err.status : 400;
+    const message = err instanceof Error ? err.message : "Erro ao listar imagens";
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

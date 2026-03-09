@@ -33,6 +33,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 
+const IMAGE_MESSAGE_PREFIX = "__hydra_image__:";
+
 type ThemePreset = {
   id: string;
   label: string;
@@ -70,12 +72,6 @@ const settings = [
   "Segurança",
   "Controles Parentais",
   "Conta",
-];
-
-const gallery = [
-  { title: "Cérebro quântico luminescente", url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80" },
-  { title: "Interface holo lilás", url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80" },
-  { title: "Rede neural verde", url: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&q=80" },
 ];
 
 const projects = [
@@ -148,6 +144,7 @@ type SavedIntegration = {
 };
 
 type VoiceOption = { id: string; label: string };
+type GalleryItem = { id: string; title: string; url: string; createdAt: string };
 
 type SettingsState = {
   general: {
@@ -232,6 +229,9 @@ export default function DashboardPage() {
   const [integrationsLoading, setIntegrationsLoading] = useState(false);
   const [integrationsError, setIntegrationsError] = useState<string | null>(null);
   const [savedIntegrations, setSavedIntegrations] = useState<SavedIntegration[]>([]);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
   const [familyLoading, setFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
   const [profileName, setProfileName] = useState("Usuário HYDRA");
@@ -324,6 +324,7 @@ export default function DashboardPage() {
     loadAccount();
     loadDomains();
     loadIntegrations();
+    loadGallery();
     loadPersistedSettings();
     loadFamilyMembers();
   }, []);
@@ -429,6 +430,21 @@ export default function DashboardPage() {
       });
     } catch {
       // keep local cache if backend save fails
+    }
+  }
+
+  async function loadGallery() {
+    try {
+      setGalleryLoading(true);
+      setGalleryError(null);
+      const res = await fetch("/api/image", { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao carregar galeria");
+      setGalleryItems((data.images as GalleryItem[] | undefined) || []);
+    } catch (err) {
+      setGalleryError(err instanceof Error ? err.message : "Erro ao carregar galeria");
+    } finally {
+      setGalleryLoading(false);
     }
   }
 
@@ -703,6 +719,7 @@ export default function DashboardPage() {
       const newId = (data.conversationId as string) || conversationId;
       setConversationId(newId);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      if (typeof data.imageUrl === "string") void loadGallery();
       loadHistory();
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Erro ao enviar mensagem");
@@ -739,6 +756,24 @@ export default function DashboardPage() {
     utterance.rate = 1;
     window.speechSynthesis.speak(utterance);
     return true;
+  }
+
+  async function playTextAudio(text: string, voiceId: string) {
+    const audioRes = await fetch("/api/audio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voiceId }),
+    });
+    const audioData = await audioRes.json();
+
+    if (!audioRes.ok) {
+      const usedBrowserSpeech = speakWithBrowser(text);
+      if (!usedBrowserSpeech) throw new Error(audioData.error || "Erro ao gerar áudio");
+      return;
+    }
+
+    const audio = new Audio(audioData.audio as string);
+    await audio.play();
   }
 
   async function handleVoiceToText() {
@@ -797,19 +832,7 @@ export default function DashboardPage() {
       setConversationId(newId);
       setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: reply }]);
 
-      const audioRes = await fetch("/api/audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: reply, voiceId: selectedVoice }),
-      });
-      const audioData = await audioRes.json();
-      if (!audioRes.ok) {
-        const usedBrowserSpeech = speakWithBrowser(reply);
-        if (!usedBrowserSpeech) throw new Error(audioData.error || "Erro ao gerar áudio");
-      } else {
-        const audio = new Audio(audioData.audio as string);
-        await audio.play();
-      }
+      await playTextAudio(reply, selectedVoice);
       loadHistory();
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Erro na conversa por voz");
@@ -1101,15 +1124,20 @@ export default function DashboardPage() {
               <Card title="Galeria de imagens" icon={ImageIcon} theme={theme}>
                 <p className="text-sm text-slate-200">Guarde e baixe tudo que o bot cria. Biblioteca pessoal com acesso rápido.</p>
                 <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {gallery.map((item) => (
-                    <div key={item.title} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                  {galleryLoading && <p className="text-xs text-slate-300">Carregando imagens...</p>}
+                  {galleryError && <p className="text-xs text-amber-200">{galleryError}</p>}
+                  {!galleryLoading && galleryItems.length === 0 && !galleryError && (
+                    <p className="text-xs text-slate-300">Nenhuma imagem gerada ainda. Peça no chat algo como "gere uma imagem de uma flor negra".</p>
+                  )}
+                  {galleryItems.map((item) => (
+                    <div key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                       <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${item.url})` }} />
                       <div className="flex items-center justify-between px-3 py-2 text-xs">
                         <span className="text-slate-100">{item.title}</span>
-                        <button className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-white">
+                        <a href={item.url} download="hydra-image.png" className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-white">
                           <Download className="h-3.5 w-3.5" />
                           Baixar
-                        </button>
+                        </a>
                       </div>
                     </div>
                   ))}
@@ -1481,12 +1509,6 @@ export default function DashboardPage() {
                   <div className="space-y-3">
                     <SectionTitle title="Segurança" subtitle="MFA e dispositivos" />
                     <ToggleRow
-                      label="Autenticador"
-                      description="Códigos únicos de app"
-                      value={settingsState.security.mfaApp}
-                      onChange={(v) => setSettingsState((s) => ({ ...s, security: { ...s.security, mfaApp: v } }))}
-                    />
-                    <ToggleRow
                       label="SMS"
                       description="Receber códigos por SMS/WhatsApp"
                       value={settingsState.security.mfaSms}
@@ -1499,8 +1521,39 @@ export default function DashboardPage() {
                       onChange={(v) => setSettingsState((s) => ({ ...s, security: { ...s.security, trustedDevices: v } }))}
                     />
                     <div className="flex gap-2 text-xs text-slate-200">
-                      <button className="rounded-xl bg-white/10 px-3 py-2 font-semibold text-white hover:bg-white/15">Sair deste aparelho</button>
-                      <button className="rounded-xl border border-white/20 px-3 py-2 font-semibold text-white hover:bg-white/10">Sair de tudo</button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+                            window.location.href = "/login";
+                          } catch (err) {
+                            setChatError(err instanceof Error ? err.message : "Erro ao sair deste aparelho");
+                          }
+                        }}
+                        className="rounded-xl bg-white/10 px-3 py-2 font-semibold text-white hover:bg-white/15"
+                      >
+                        Sair deste aparelho
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch("/api/auth/logout", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "include",
+                              body: JSON.stringify({ all: true }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) throw new Error(data.error || "Erro ao sair de tudo");
+                            window.location.href = "/login";
+                          } catch (err) {
+                            setChatError(err instanceof Error ? err.message : "Erro ao sair de tudo");
+                          }
+                        }}
+                        className="rounded-xl border border-white/20 px-3 py-2 font-semibold text-white hover:bg-white/10"
+                      >
+                        Sair de tudo
+                      </button>
                     </div>
                   </div>
                 )}
@@ -1615,15 +1668,7 @@ export default function DashboardPage() {
                     onClick={async () => {
                       setVoicePreviewLoading(v.id);
                       try {
-                        const res = await fetch("/api/audio", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ text: `Olá, eu sou a voz ${v.label}`, voiceId: v.id }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || "Erro na prévia");
-                        const audio = new Audio(data.audio as string);
-                        await audio.play();
+                        await playTextAudio(`Olá, eu sou a voz ${v.label}`, v.id);
                       } catch (err) {
                         setChatError(err instanceof Error ? err.message : "Erro ao tocar prévia");
                       } finally {
@@ -1945,6 +1990,10 @@ function IntegrationForm({ onAdd, loading }: { onAdd: (name: string, apiKey?: st
 
 function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; content: string; accent: string }) {
   const isUser = role === "user";
+  const imagePayload = !isUser && content.startsWith(IMAGE_MESSAGE_PREFIX)
+    ? JSON.parse(content.slice(IMAGE_MESSAGE_PREFIX.length)) as { prompt: string; url: string }
+    : null;
+
   return (
     <div className={clsx("flex", isUser ? "justify-end" : "justify-start")}> 
       <div
@@ -1955,7 +2004,25 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
         style={!isUser ? { borderColor: accent } : undefined}
       >
         <p className="text-[11px] uppercase tracking-wide text-slate-400">{isUser ? "Você" : "HYDRA AI"}</p>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+        {imagePayload ? (
+          <div className="mt-2 space-y-3">
+            <img src={imagePayload.url} alt={imagePayload.prompt} className="max-h-80 w-full rounded-2xl object-cover" />
+            <div>
+              <p className="text-sm font-semibold text-white">Imagem gerada</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{imagePayload.prompt}</p>
+            </div>
+            <div className="flex gap-2">
+              <a href={imagePayload.url} download="hydra-image.png" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                Baixar
+              </a>
+              <a href={imagePayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
+                Abrir
+              </a>
+            </div>
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+        )}
       </div>
     </div>
   );

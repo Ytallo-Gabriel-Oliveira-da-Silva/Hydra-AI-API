@@ -6,7 +6,7 @@ export type Limits = {
 };
 
 export const defaultPlanLimits: Record<string, Limits> = {
-  free: { chatLimit: 15, imageLimit: 2, audioLimit: 0, videoLimit: 0 },
+  free: { chatLimit: 15, imageLimit: 2, audioLimit: 10, videoLimit: 0 },
   plus: { chatLimit: null, imageLimit: null, audioLimit: 100, videoLimit: 40 },
   pro: { chatLimit: null, imageLimit: null, audioLimit: null, videoLimit: null },
   annual: { chatLimit: null, imageLimit: null, audioLimit: null, videoLimit: null },

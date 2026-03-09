@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { nanoid } from "nanoid";
 import { addHours } from "date-fns";
+import { buildAppUrl, sendPasswordResetEmail } from "@/lib/mail";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -22,9 +23,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Aqui enviaríamos e-mail; para dev retornamos o token.
+    const baseUrl = buildAppUrl(req.nextUrl.origin);
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+    await sendPasswordResetEmail({
+      to: user.email,
+      resetUrl,
+    });
+
     const payload: { message: string; debugToken?: string } = {
-      message: "Token gerado. Use o endpoint /auth/reset-confirm.",
+      message: "Se existir conta, um link foi enviado.",
     };
     if (process.env.NODE_ENV !== "production") payload.debugToken = token;
     return NextResponse.json(payload);
