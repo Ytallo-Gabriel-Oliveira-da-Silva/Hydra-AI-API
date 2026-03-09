@@ -8,6 +8,12 @@ import { detectCountryCode } from "./geo";
 const SESSION_COOKIE = "hydra_session";
 const SESSION_DAYS = 30;
 
+function shouldUseSecureSessionCookie() {
+  if (process.env.SESSION_COOKIE_SECURE === "true") return true;
+  if (process.env.SESSION_COOKIE_SECURE === "false") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
@@ -58,14 +64,20 @@ export function setSessionCookie(res: NextResponse, token: string, expiresAt: Da
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureSessionCookie(),
     expires: expiresAt,
     path: "/",
   });
 }
 
 export function clearSessionCookie(res: NextResponse) {
-  res.cookies.set(SESSION_COOKIE, "", { expires: new Date(0), path: "/" });
+  res.cookies.set(SESSION_COOKIE, "", {
+    expires: new Date(0),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: shouldUseSecureSessionCookie(),
+    path: "/",
+  });
 }
 
 export async function registerUser({

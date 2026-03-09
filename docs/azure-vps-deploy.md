@@ -93,6 +93,7 @@ Configuracao recomendada para usar SQLite na VPS:
 ```env
 DATABASE_URL="file:./data.db"
 NODE_ENV="production"
+SESSION_COOKIE_SECURE="false"
 GROQ_API_KEY=""
 GROQ_CHAT_MODEL="llama-3.3-70b-versatile"
 GROQ_STT_MODEL="whisper-large-v3-turbo"
@@ -104,6 +105,8 @@ RUNWAY_API_KEY=""
 JWT_SECRET="troque-por-um-segredo-longo"
 RESET_TOKEN_SECRET="troque-por-outro-segredo-longo"
 ```
+
+Enquanto voce estiver acessando apenas por IP e HTTP, `SESSION_COOKIE_SECURE="false"` e necessario para login e cadastro funcionarem no navegador. Assim que configurar dominio com HTTPS, troque para `SESSION_COOKIE_SECURE="true"` e reinicie a aplicacao.
 
 Observacao importante: com o schema atual, `file:./data.db` vai criar o banco em `prisma/data.db`, porque o caminho e resolvido a partir de [prisma/schema.prisma](prisma/schema.prisma).
 
@@ -211,7 +214,7 @@ pm2 logs hydra-ai
 Reiniciar apos alteracao:
 
 ```bash
-pm2 restart hydra-ai
+pm2 restart hydra-ai --update-env
 ```
 
 Ver status do Nginx:
