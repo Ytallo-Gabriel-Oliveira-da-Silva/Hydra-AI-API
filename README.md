@@ -64,3 +64,9 @@ As opcoes mais simples para esse projeto sao:
 - Railway Postgres
 
 Se voce quiser persistencia simples com latencia baixa e custo pequeno, eu recomendaria começar com Neon ou Vercel Postgres.
+
+## Deploy em VPS Ubuntu
+
+Se voce quiser manter SQLite por enquanto, a melhor opcao e publicar em uma VPS Linux com disco persistente.
+
+Guia recomendado: veja `docs/azure-vps-deploy.md`.
