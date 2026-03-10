@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/api-guard";
+import { getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const user = await requireUser(req);
+    const session = await getSession(req);
+    if (!session) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const user = session.user;
     const plan = user.plan;
     const renewal = user.currentPeriodEndsAt ?? null;
+    const billingNotice = (session as typeof session & {
+      billingNotice?: {
+        planExpired?: boolean;
+        expiredPlanName?: string | null;
+        expiredAt?: string | null;
+      };
+    }).billingNotice;
 
     return NextResponse.json({
       id: user.id,
@@ -21,6 +33,11 @@ export async function GET(req: NextRequest) {
           }
         : { slug: "free", name: "Free" },
       renewalAt: renewal ? renewal.toISOString() : null,
+      billingNotice: {
+        planExpired: billingNotice?.planExpired || false,
+        expiredPlanName: billingNotice?.expiredPlanName || null,
+        expiredAt: billingNotice?.expiredAt || null,
+      },
       createdAt: user.createdAt,
     });
   } catch (err: unknown) {

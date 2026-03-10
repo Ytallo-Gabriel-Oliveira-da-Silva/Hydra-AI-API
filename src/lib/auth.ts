@@ -8,6 +8,32 @@ import { detectCountryCode } from "./geo";
 const SESSION_COOKIE = "hydra_session";
 const SESSION_DAYS = 30;
 
+type SessionWithUser = Awaited<ReturnType<typeof prisma.session.findFirst>> & {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    planId: string;
+    currentPeriodEndsAt: Date | null;
+    countryCode: string | null;
+    createdAt: Date;
+    blacklisted: boolean;
+    plan: {
+      id: string;
+      slug: string;
+      name: string;
+      monthlyPrice: number | null;
+      yearlyPrice: number | null;
+    };
+  };
+};
+
+export type BillingNotice = {
+  planExpired: boolean;
+  expiredPlanName: string | null;
+  expiredAt: string | null;
+};
+
 function shouldUseSecureSessionCookie() {
   if (process.env.SESSION_COOKIE_SECURE === "true") return true;
   if (process.env.SESSION_COOKIE_SECURE === "false") return false;
@@ -50,14 +76,55 @@ export async function getSession(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const session = await prisma.session.findFirst({
+  const session = (await prisma.session.findFirst({
     where: {
       token,
       expiresAt: { gt: new Date() },
     },
     include: { user: { include: { plan: true } } },
+  })) as SessionWithUser | null;
+
+  if (!session) return null;
+
+  const billingNotice = await syncExpiredPlan(session);
+  return Object.assign(session, { billingNotice });
+}
+
+async function syncExpiredPlan(session: SessionWithUser): Promise<BillingNotice> {
+  const expiredAt = session.user.currentPeriodEndsAt;
+
+  if (!expiredAt || expiredAt > new Date() || session.user.plan.slug === "free") {
+    return {
+      planExpired: false,
+      expiredPlanName: null,
+      expiredAt: null,
+    };
+  }
+
+  const freePlan = await prisma.plan.findUnique({ where: { slug: "free" } });
+  if (!freePlan) {
+    return {
+      planExpired: true,
+      expiredPlanName: session.user.plan.name,
+      expiredAt: expiredAt.toISOString(),
+    };
+  }
+
+  const expiredPlanName = session.user.plan.name;
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { planId: freePlan.id },
   });
-  return session;
+
+  session.user.planId = freePlan.id;
+  session.user.plan = freePlan;
+
+  return {
+    planExpired: true,
+    expiredPlanName,
+    expiredAt: expiredAt.toISOString(),
+  };
 }
 
 export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date) {

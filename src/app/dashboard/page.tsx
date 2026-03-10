@@ -137,6 +137,12 @@ type PlanConfig = {
   financeReference: string;
 };
 
+type BillingNotice = {
+  planExpired: boolean;
+  expiredPlanName: string | null;
+  expiredAt: string | null;
+};
+
 type SavedIntegration = {
   name: string;
   domain?: string | null;
@@ -243,6 +249,7 @@ export default function DashboardPage() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>("general");
   const [accountLoading, setAccountLoading] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [billingNotice, setBillingNotice] = useState<BillingNotice>({ planExpired: false, expiredPlanName: null, expiredAt: null });
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceReplyLoading, setVoiceReplyLoading] = useState(false);
@@ -478,8 +485,14 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(data.error || "Não autenticado");
       const renewal = data.renewalAt ? new Date(data.renewalAt).toLocaleDateString("pt-BR") : "";
       const planLabel = data.plan?.name || data.plan?.slug || "Free";
+      const nextBillingNotice: BillingNotice = {
+        planExpired: Boolean(data.billingNotice?.planExpired),
+        expiredPlanName: data.billingNotice?.expiredPlanName || null,
+        expiredAt: data.billingNotice?.expiredAt || null,
+      };
       setProfileName(data.name || "Usuário HYDRA");
       setProfilePlan(planLabel);
+      setBillingNotice(nextBillingNotice);
       setSettingsState((s) => ({
         ...s,
         personalization: {
@@ -953,10 +966,17 @@ export default function DashboardPage() {
             <p className="text-xs uppercase tracking-wide text-slate-300">Plano ativo</p>
             <p className="mt-1 text-lg font-semibold text-white">{profilePlan}</p>
             <p className="text-xs text-slate-300">
-              {settingsState.account.renewal
+              {billingNotice.planExpired && billingNotice.expiredAt
+                ? `Plano expirado em ${new Date(billingNotice.expiredAt).toLocaleDateString("pt-BR")}`
+                : settingsState.account.renewal
                 ? `Renovação em ${settingsState.account.renewal}`
                 : "Sem cobrança recorrente enquanto a conta estiver no Free."}
             </p>
+            {billingNotice.planExpired && (
+              <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                Seu plano {billingNotice.expiredPlanName || "pago"} expirou. A conta voltou para o Free. Atualize o pagamento para reativar os recursos premium.
+              </div>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Link href="/plans" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20">
                 Ver planos
@@ -1705,10 +1725,19 @@ export default function DashboardPage() {
                     />
                     <InputRow
                       label="Renovação"
-                      value={settingsState.account.renewal}
+                      value={
+                        billingNotice.planExpired && billingNotice.expiredAt
+                          ? `Expirado em ${new Date(billingNotice.expiredAt).toLocaleDateString("pt-BR")}`
+                          : settingsState.account.renewal
+                      }
                       readOnly
                       placeholder="Ex: 06/04/2026"
                     />
+                    {billingNotice.planExpired && (
+                      <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                        O plano {billingNotice.expiredPlanName || "premium"} venceu e a conta foi revertida automaticamente para o Free. Faça um novo pagamento para renovar o acesso.
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Link href="/plans" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                         Atualizar plano
