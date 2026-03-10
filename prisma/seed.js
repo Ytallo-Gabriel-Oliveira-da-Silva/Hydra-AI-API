@@ -13,9 +13,9 @@ async function main() {
       badgeFrom: '#6b4a2a',
       badgeTo: '#8b5a2b',
       chatLimit: null,
-      imageLimit: 5,
-      audioLimit: 20,
-      videoLimit: 1,
+      imageLimit: 100,
+      audioLimit: 50,
+      videoLimit: 50,
     },
     {
       slug: 'plus',
