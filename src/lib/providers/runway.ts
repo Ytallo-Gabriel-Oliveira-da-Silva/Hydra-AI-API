@@ -1,4 +1,4 @@
-const RUNWAY_API_BASE = "https://api.runwayml.com";
+const RUNWAY_API_BASE = "https://api.dev.runwayml.com";
 const RUNWAY_API_VERSION = process.env.RUNWAY_API_VERSION || "2024-11-06";
 
 export type RunwayVideoResponse = {
