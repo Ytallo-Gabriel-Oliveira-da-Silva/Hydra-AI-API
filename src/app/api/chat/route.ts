@@ -97,6 +97,14 @@ async function generateChatReply(messages: { role: string; content: string }[]) 
   return groqChat(messages);
 }
 
+function buildMediaUnavailableReply(kind: "audio" | "video") {
+  if (kind === "audio") {
+    return "No momento eu não consegui gerar o arquivo de áudio porque o provider de voz está sem créditos para esta conta. A conversa em texto continua normal e a resposta falada no navegador ainda pode funcionar localmente.";
+  }
+
+  return "No momento eu não consegui gerar o vídeo porque a conta do provider de vídeo está sem créditos. O recurso continua habilitado no seu plano, mas a geração depende de saldo disponível no provider.";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -120,18 +128,24 @@ export async function POST(req: NextRequest) {
       if (!process.env.RUNWAY_API_KEY) throw new ApiError("RUNWAY_API_KEY ausente", 500);
 
       const prompt = cleanGenerativePrompt(message, "video");
-      const translatedPrompt = await normalizeVisualPrompt(prompt);
-      const video = await runwayCreateVideo(translatedPrompt, "16:9", 6);
-      await incrementUsage(user.id, "video", monthKey);
+      try {
+        const translatedPrompt = await normalizeVisualPrompt(prompt);
+        const video = await runwayCreateVideo(translatedPrompt, "16:9", 6);
+        await incrementUsage(user.id, "video", monthKey);
 
-      reply = buildMediaMessage({
-        kind: "video",
-        prompt,
-        url: video.url,
-        aspectRatio: video.ratio,
-        duration: video.duration,
-        taskId: video.taskId,
-      });
+        reply = buildMediaMessage({
+          kind: "video",
+          prompt,
+          url: video.url,
+          aspectRatio: video.ratio,
+          duration: video.duration,
+          taskId: video.taskId,
+        });
+      } catch (error) {
+        if (!isRunwayInsufficientCreditsError(error)) throw error;
+        reply = buildMediaUnavailableReply("video");
+      }
+
       convId = await ensureConversation(user.id, conversationId, prompt);
     } else if (isAudioRequest(message)) {
       const audioQuota = await canUse(user, "audio", monthKey);
@@ -142,16 +156,25 @@ export async function POST(req: NextRequest) {
 
       const textToSpeak = cleanGenerativePrompt(message, "audio");
       const chosenVoiceId = resolveHydraVoiceId(voiceId || process.env.ELEVENLABS_VOICE_ID);
-      const generated = await generateSpeechAudio(textToSpeak, chosenVoiceId);
-      await incrementUsage(user.id, "audio", monthKey);
+      try {
+        const generated = await generateSpeechAudio(textToSpeak, chosenVoiceId);
+        await incrementUsage(user.id, "audio", monthKey);
 
-      reply = buildMediaMessage({
-        kind: "audio",
-        prompt: message,
-        text: textToSpeak,
-        audioUrl: generated.audioUrl,
-        voiceId: chosenVoiceId,
-      });
+        reply = buildMediaMessage({
+          kind: "audio",
+          prompt: message,
+          text: textToSpeak,
+          audioUrl: generated.audioUrl,
+          voiceId: chosenVoiceId,
+        });
+      } catch (error) {
+        const messageText = error instanceof Error ? error.message : "";
+        if (!isRunwayInsufficientCreditsError(error) && !messageText.includes("sem créditos para o fallback de áudio")) {
+          throw error;
+        }
+        reply = buildMediaUnavailableReply("audio");
+      }
+
       convId = await ensureConversation(user.id, conversationId, textToSpeak);
     } else if (isImageRequest(message)) {
       const imageQuota = await canUse(user, "image", monthKey);

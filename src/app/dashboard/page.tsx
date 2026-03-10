@@ -808,7 +808,11 @@ export default function DashboardPage() {
     });
     const audioData = await audioRes.json();
 
-    if (!audioRes.ok) throw new Error(audioData.error || "Erro ao gerar prévia da voz");
+    if (!audioRes.ok) {
+      const usedBrowserSpeech = speakWithBrowser(voice.previewText);
+      if (!usedBrowserSpeech) throw new Error(audioData.error || "Erro ao gerar prévia da voz");
+      return;
+    }
 
     const audio = new Audio(audioData.audio as string);
     await audio.play();
