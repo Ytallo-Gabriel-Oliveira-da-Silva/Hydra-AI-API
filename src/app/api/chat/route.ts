@@ -3,15 +3,17 @@ import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
-import { groqChat } from "@/lib/providers/groq";
+import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
+import { elevenLabsTTS } from "@/lib/providers/elevenlabs";
+import { runwayCreateVideo } from "@/lib/providers/runway";
+import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 
 const schema = z.object({
   message: z.string().min(1),
   conversationId: z.string().optional(),
+  voiceId: z.string().optional(),
 });
-
-const IMAGE_MESSAGE_PREFIX = "__hydra_image__:";
 
 function isImageRequest(message: string) {
   if (/\bprompt\b/i.test(message)) return false;
@@ -20,8 +22,47 @@ function isImageRequest(message: string) {
     || /\b(?:imagem|foto|arte|ilustração|ilustracao|desenho|render)\b(?:[\s\S]{0,40})\b(?:de|do|da)\b/i.test(message);
 }
 
-function buildImageAssistantContent(prompt: string, url: string) {
-  return `${IMAGE_MESSAGE_PREFIX}${JSON.stringify({ prompt, url })}`;
+function isAudioRequest(message: string) {
+  return /(?:^|\b)(?:gere|gera|crie|cria|faça|faca|produza)(?:[\s\S]{0,80})\b(?:áudio|audio|narração|narracao|locução|locucao|voz|fala)\b/i.test(message)
+    || /\b(?:áudio|audio|voz|fala)\b(?:[\s\S]{0,40})\b(?:falando|dizendo|com|de)\b/i.test(message);
+}
+
+function isVideoRequest(message: string) {
+  return /(?:^|\b)(?:gere|gera|crie|cria|faça|faca|produza|monte|anime)(?:[\s\S]{0,80})\b(?:vídeo|video|filme|animação|animacao|clip)\b/i.test(message)
+    || /\b(?:vídeo|video|filme|animação|animacao|clip)\b(?:[\s\S]{0,40})\b(?:de|do|da|com)\b/i.test(message);
+}
+
+function extractQuotedText(message: string) {
+  const match = message.match(/["“”'']([^"“”'']+)["“”'']/);
+  return match?.[1]?.trim() || null;
+}
+
+function cleanGenerativePrompt(message: string, kind: "image" | "audio" | "video") {
+  const quoted = extractQuotedText(message);
+  if (kind === "audio" && quoted) return quoted;
+
+  const patterns =
+    kind === "audio"
+      ? [
+          /\b(?:falando|dizendo|narrando|com o texto|texto)\s+([\s\S]+)/i,
+          /\b(?:áudio|audio|voz|fala)\s+(?:de|com)\s+([\s\S]+)/i,
+        ]
+      : [
+          /\b(?:imagem|foto|arte|ilustração|ilustracao|desenho|render|vídeo|video|filme|animação|animacao|clip)\s+(?:de|do|da|com)\s+([\s\S]+)/i,
+          /\b(?:gere|gera|crie|cria|faça|faca|produza|desenhe|renderize|anime|monte)\s+(?:uma|um)?\s*(?:imagem|foto|arte|ilustração|ilustracao|desenho|render|vídeo|video|filme|animação|animacao|clip)?\s*(?:de|do|da|com)?\s*([\s\S]+)/i,
+        ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  return message.trim();
+}
+
+async function normalizeVisualPrompt(prompt: string) {
+  if (!process.env.GROQ_API_KEY) return prompt;
+  return groqTranslateToEnglishPrompt(prompt).catch(() => prompt);
 }
 
 async function ensureConversation(userId: string, conversationId: string | undefined, title: string) {
@@ -58,7 +99,7 @@ async function generateChatReply(messages: { role: string; content: string }[]) 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, conversationId } = schema.parse(body);
+    const { message, conversationId, voiceId } = schema.parse(body);
 
     const user = await requireUser(req);
     const country = await requireCountry(req);
@@ -72,16 +113,55 @@ export async function POST(req: NextRequest) {
     let reply: string;
     let convId: string;
 
-    if (isImageRequest(message)) {
+    if (isVideoRequest(message)) {
+      const videoQuota = await canUse(user, "video", monthKey);
+      if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
+      if (!process.env.RUNWAY_API_KEY) throw new ApiError("RUNWAY_API_KEY ausente", 500);
+
+      const prompt = cleanGenerativePrompt(message, "video");
+      const translatedPrompt = await normalizeVisualPrompt(prompt);
+      const video = await runwayCreateVideo(translatedPrompt, "16:9", 6);
+      await incrementUsage(user.id, "video", monthKey);
+
+      reply = buildMediaMessage({
+        kind: "video",
+        prompt,
+        url: video.url,
+        aspectRatio: video.ratio,
+        duration: video.duration,
+        taskId: video.taskId,
+      });
+      convId = await ensureConversation(user.id, conversationId, prompt);
+    } else if (isAudioRequest(message)) {
+      const audioQuota = await canUse(user, "audio", monthKey);
+      if (!audioQuota.allowed) throw new ApiError("Limite de áudio atingido para seu plano", 403);
+      if (!process.env.ELEVENLABS_API_KEY) throw new ApiError("ELEVENLABS_API_KEY ausente", 500);
+
+      const textToSpeak = cleanGenerativePrompt(message, "audio");
+      const chosenVoiceId = voiceId || process.env.ELEVENLABS_VOICE_ID || "dtSEyYGNJqjrtBArPCVZ";
+      const audioBase64 = await elevenLabsTTS(textToSpeak, chosenVoiceId);
+      await incrementUsage(user.id, "audio", monthKey);
+
+      reply = buildMediaMessage({
+        kind: "audio",
+        prompt: message,
+        text: textToSpeak,
+        audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
+        voiceId: chosenVoiceId,
+      });
+      convId = await ensureConversation(user.id, conversationId, textToSpeak);
+    } else if (isImageRequest(message)) {
       const imageQuota = await canUse(user, "image", monthKey);
       if (!imageQuota.allowed) throw new ApiError("Limite de imagem atingido para seu plano", 403);
       if (!process.env.STABILITY_API_KEY) throw new ApiError("STABILITY_API_KEY ausente", 500);
 
-      const imageUrl = await stabilityGenerateImage(message);
+      const prompt = cleanGenerativePrompt(message, "image");
+      const translatedPrompt = await normalizeVisualPrompt(prompt);
+      const imageUrl = await stabilityGenerateImage(translatedPrompt);
       await incrementUsage(user.id, "image", monthKey);
-      await prisma.imageAsset.create({ data: { userId: user.id, title: message.slice(0, 80), url: imageUrl } });
-      reply = buildImageAssistantContent(message, imageUrl);
-      convId = await ensureConversation(user.id, conversationId, message);
+      await prisma.imageAsset.create({ data: { userId: user.id, title: prompt.slice(0, 80), url: imageUrl } });
+      reply = buildMediaMessage({ kind: "image", prompt, url: imageUrl });
+      convId = await ensureConversation(user.id, conversationId, prompt);
     } else {
       const system = systemPrompt(country);
       reply = await generateChatReply([
@@ -100,9 +180,8 @@ export async function POST(req: NextRequest) {
       ],
     });
 
-    const imageUrl = reply.startsWith(IMAGE_MESSAGE_PREFIX)
-      ? (JSON.parse(reply.slice(IMAGE_MESSAGE_PREFIX.length)) as { url: string }).url
-      : null;
+    const mediaPayload = parseMediaMessage(reply);
+    const imageUrl = mediaPayload?.kind === "image" ? mediaPayload.url : null;
 
     return NextResponse.json({ reply, conversationId: convId, imageUrl });
   } catch (err: unknown) {

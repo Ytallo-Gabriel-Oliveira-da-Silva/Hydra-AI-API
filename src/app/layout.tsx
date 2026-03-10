@@ -39,9 +39,9 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   icons: {
-    icon: "/logo/logo-hydra-ai.jpeg",
-    shortcut: "/logo/logo-hydra-ai.jpeg",
-    apple: "/logo/logo-hydra-ai.jpeg",
+    icon: "/logo-hydra-ai.jpeg",
+    shortcut: "/logo-hydra-ai.jpeg",
+    apple: "/logo-hydra-ai.jpeg",
   },
   openGraph: {
     type: "website",
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
       "Plataforma de IA com chat, criação visual, voz, projetos, investigações e operação profissional em uma experiência unificada.",
     images: [
       {
-        url: "/logo/logo-hydra-ai.jpeg",
+        url: "/logo-hydra-ai.jpeg",
         width: 1200,
         height: 1200,
         alt: "Logo da HYDRA AI",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     title: "HYDRA AI | Assistente multimodal com chat, imagem, áudio e automação",
     description:
       "Use chat, imagem, voz, investigações e projetos em uma plataforma de IA pronta para operação.",
-    images: ["/logo/logo-hydra-ai.jpeg"],
+    images: ["/logo-hydra-ai.jpeg"],
   },
   robots: {
     index: true,

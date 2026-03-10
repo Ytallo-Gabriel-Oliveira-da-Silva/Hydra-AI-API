@@ -29,6 +29,19 @@ export async function groqChat(messages: { role: string; content: string }[]) {
   return data.choices?.[0]?.message?.content as string;
 }
 
+export async function groqTranslateToEnglishPrompt(prompt: string) {
+  const translated = await groqChat([
+    {
+      role: "system",
+      content:
+        "You translate prompts for generative media into fluent English. Preserve all concrete details, style, tone, camera direction, composition, color, and subject matter. If the prompt is already in English, keep it in English. Return only the translated prompt without quotes or commentary.",
+    },
+    { role: "user", content: prompt },
+  ]);
+
+  return translated.trim();
+}
+
 export async function groqTranscribe(buffer: Buffer, mime: string) {
   const bytes = new Uint8Array(buffer);
   const file = new File([bytes], "audio.webm", { type: mime });

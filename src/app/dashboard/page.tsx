@@ -32,8 +32,7 @@ import type { CSSProperties, ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
-
-const IMAGE_MESSAGE_PREFIX = "__hydra_image__:";
+import { parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
 
 type ThemePreset = {
   id: string;
@@ -253,6 +252,18 @@ export default function DashboardPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const settingsHydratedRef = useRef(false);
   const saveSettingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { recentAudios, recentVideos } = useMemo(() => {
+    const payloads = messages
+      .filter((msg) => msg.role === "assistant")
+      .map((msg) => parseMediaMessage(msg.content))
+      .filter((payload): payload is AudioMessagePayload | VideoMessagePayload => !!payload && payload.kind !== "image");
+
+    return {
+      recentAudios: payloads.filter((payload): payload is AudioMessagePayload => payload.kind === "audio"),
+      recentVideos: payloads.filter((payload): payload is VideoMessagePayload => payload.kind === "video"),
+    };
+  }, [messages]);
 
   const surfaceStyle = useMemo(
     () => ({ "--accent-from": theme.accentFrom, "--accent-to": theme.accentTo } as CSSProperties),
@@ -711,7 +722,11 @@ export default function DashboardPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId: conversationId || undefined }),
+        body: JSON.stringify({
+          message: text,
+          conversationId: conversationId || undefined,
+          voiceId: selectedVoice || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao enviar mensagem");
@@ -719,7 +734,7 @@ export default function DashboardPage() {
       const newId = (data.conversationId as string) || conversationId;
       setConversationId(newId);
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-      if (typeof data.imageUrl === "string") void loadGallery();
+      if (parseMediaMessage(reply)?.kind === "image") void loadGallery();
       loadHistory();
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Erro ao enviar mensagem");
@@ -823,7 +838,7 @@ export default function DashboardPage() {
       const chatRes = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId }),
+        body: JSON.stringify({ message: text, conversationId, voiceId: selectedVoice || undefined }),
       });
       const chatData = await chatRes.json();
       if (!chatRes.ok) throw new Error(chatData.error || "Erro ao responder");
@@ -832,7 +847,7 @@ export default function DashboardPage() {
       setConversationId(newId);
       setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: reply }]);
 
-      await playTextAudio(reply, selectedVoice);
+      await playTextAudio(getSpeakableResponse(reply), selectedVoice);
       loadHistory();
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Erro na conversa por voz");
@@ -1051,7 +1066,7 @@ export default function DashboardPage() {
                     <Sparkles className="h-4 w-4 text-amber-300" />
                     <div>
                       <p className="font-semibold text-white">Pergunte algo como:</p>
-                      <p className="text-xs text-slate-300">"Quem é Pedro Álvares Cabral?" ou "Gere um prompt de imagem neon"</p>
+                      <p className="text-xs text-slate-300">"gere uma imagem de uma flor cyberpunk", "crie um áudio falando olá mundo" ou "gere um vídeo de chuva neon"</p>
                     </div>
                   </div>
                 )}
@@ -1134,10 +1149,10 @@ export default function DashboardPage() {
                       <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${item.url})` }} />
                       <div className="flex items-center justify-between px-3 py-2 text-xs">
                         <span className="text-slate-100">{item.title}</span>
-                        <a href={item.url} download="hydra-image.png" className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-white">
+                        <button onClick={() => downloadAsset(item.url, "hydra-image.png")} className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-white">
                           <Download className="h-3.5 w-3.5" />
                           Baixar
-                        </a>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1145,6 +1160,42 @@ export default function DashboardPage() {
                 <div className="mt-3 flex gap-2 text-xs text-slate-200">
                   <Badge label="Text-to-Image" color={theme.accentFrom} />
                   <Badge label="Inpainting" color={theme.accentTo} />
+                </div>
+              </Card>
+
+              <Card title="Áudios gerados" icon={Mic} theme={theme}>
+                <p className="text-sm text-slate-200">Ouça e baixe os áudios criados na conversa atual.</p>
+                <div className="mt-3 space-y-3">
+                  {recentAudios.length === 0 && <p className="text-xs text-slate-300">Ainda não há áudios nesta conversa. Peça no chat para criar um áudio.</p>}
+                  {recentAudios.map((item, index) => (
+                    <div key={`${item.voiceId}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-sm font-semibold text-white">Áudio gerado</p>
+                      <p className="mt-1 text-xs text-slate-300">{item.text}</p>
+                      <audio controls className="mt-3 w-full" src={item.audioUrl} preload="metadata" />
+                      <button onClick={() => downloadAsset(item.audioUrl, "hydra-audio.mp3")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                        <Download className="h-3.5 w-3.5" />
+                        Baixar áudio
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <Card title="Vídeos gerados" icon={PlayCircle} theme={theme}>
+                <p className="text-sm text-slate-200">Assista e baixe os vídeos criados na conversa atual.</p>
+                <div className="mt-3 space-y-3">
+                  {recentVideos.length === 0 && <p className="text-xs text-slate-300">Ainda não há vídeos nesta conversa. Peça no chat para gerar um vídeo.</p>}
+                  {recentVideos.map((item, index) => (
+                    <div key={`${item.taskId || item.url}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-sm font-semibold text-white">Vídeo gerado</p>
+                      <p className="mt-1 text-xs text-slate-300">{item.prompt}</p>
+                      <video controls playsInline className="mt-3 max-h-56 w-full rounded-2xl bg-black/40" src={item.url} preload="metadata" />
+                      <button onClick={() => downloadAsset(item.url, "hydra-video.mp4")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                        <Download className="h-3.5 w-3.5" />
+                        Baixar vídeo
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </Card>
             </div>
@@ -1779,6 +1830,32 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
+function downloadAsset(url: string, filename: string) {
+  if (typeof document === "undefined") return;
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.target = "_blank";
+  link.rel = "noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function getSpeakableResponse(content: string) {
+  const media = parseMediaMessage(content);
+  if (!media) return content;
+
+  switch (media.kind) {
+    case "image":
+      return `Imagem gerada com sucesso. ${media.prompt}`;
+    case "audio":
+      return `Áudio gerado com sucesso. Texto: ${media.text}`;
+    case "video":
+      return `Vídeo gerado com sucesso. Prompt: ${media.prompt}`;
+  }
+}
+
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div>
@@ -1990,9 +2067,7 @@ function IntegrationForm({ onAdd, loading }: { onAdd: (name: string, apiKey?: st
 
 function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; content: string; accent: string }) {
   const isUser = role === "user";
-  const imagePayload = !isUser && content.startsWith(IMAGE_MESSAGE_PREFIX)
-    ? JSON.parse(content.slice(IMAGE_MESSAGE_PREFIX.length)) as { prompt: string; url: string }
-    : null;
+  const mediaPayload = !isUser ? parseMediaMessage(content) : null;
 
   return (
     <div className={clsx("flex", isUser ? "justify-end" : "justify-start")}> 
@@ -2004,18 +2079,47 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
         style={!isUser ? { borderColor: accent } : undefined}
       >
         <p className="text-[11px] uppercase tracking-wide text-slate-400">{isUser ? "Você" : "HYDRA AI"}</p>
-        {imagePayload ? (
+        {mediaPayload?.kind === "image" ? (
           <div className="mt-2 space-y-3">
-            <img src={imagePayload.url} alt={imagePayload.prompt} className="max-h-80 w-full rounded-2xl object-cover" />
+            <img src={mediaPayload.url} alt={mediaPayload.prompt} className="max-h-80 w-full rounded-2xl object-cover" />
             <div>
               <p className="text-sm font-semibold text-white">Imagem gerada</p>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{imagePayload.prompt}</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{mediaPayload.prompt}</p>
             </div>
             <div className="flex gap-2">
-              <a href={imagePayload.url} download="hydra-image.png" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+              <button onClick={() => downloadAsset(mediaPayload.url, "hydra-image.png")} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                 Baixar
+              </button>
+              <a href={mediaPayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
+                Abrir
               </a>
-              <a href={imagePayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
+            </div>
+          </div>
+        ) : mediaPayload?.kind === "audio" ? (
+          <div className="mt-2 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Áudio gerado</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{mediaPayload.text}</p>
+            </div>
+            <audio controls className="w-full" src={mediaPayload.audioUrl} preload="metadata" />
+            <div className="flex gap-2">
+              <button onClick={() => downloadAsset(mediaPayload.audioUrl, "hydra-audio.mp3")} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                Baixar
+              </button>
+            </div>
+          </div>
+        ) : mediaPayload?.kind === "video" ? (
+          <div className="mt-2 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-white">Vídeo gerado</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{mediaPayload.prompt}</p>
+            </div>
+            <video controls playsInline className="max-h-96 w-full rounded-2xl bg-black/40" src={mediaPayload.url} preload="metadata" />
+            <div className="flex gap-2">
+              <button onClick={() => downloadAsset(mediaPayload.url, "hydra-video.mp4")} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                Baixar
+              </button>
+              <a href={mediaPayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
                 Abrir
               </a>
             </div>
