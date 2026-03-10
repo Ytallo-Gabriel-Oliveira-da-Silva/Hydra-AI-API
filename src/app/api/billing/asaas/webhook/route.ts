@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getRenewalDateForPlan } from "@/lib/plans";
+import { getNextAccessEndForPlan } from "@/lib/plans";
 
 const db = prisma as any;
 
@@ -99,7 +99,10 @@ export async function POST(req: NextRequest) {
 
     if (shouldMarkAsPaid(event, payment?.status)) {
       if (transaction.status !== "paid") {
-        const renewalAt = getRenewalDateForPlan(transaction.plan.slug);
+        const renewalAt = getNextAccessEndForPlan(
+          transaction.plan.slug,
+          transaction.user.currentPeriodEndsAt,
+        );
         const metadata = transaction.metadata
           ? (() => {
               try {

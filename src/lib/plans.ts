@@ -7,6 +7,11 @@ export function getRenewalDateForPlan(planSlug: string, from = new Date()) {
   return null;
 }
 
+export function getNextAccessEndForPlan(planSlug: string, currentPeriodEndsAt?: Date | null, now = new Date()) {
+  const baseDate = currentPeriodEndsAt && currentPeriodEndsAt > now ? currentPeriodEndsAt : now;
+  return getRenewalDateForPlan(planSlug, baseDate);
+}
+
 export function getPlanAmount(monthlyPrice: number | null, yearlyPrice: number | null, planSlug: string) {
   if (planSlug === "annual") return yearlyPrice ?? 0;
   return monthlyPrice ?? 0;

@@ -141,6 +141,7 @@ type BillingNotice = {
   planExpired: boolean;
   expiredPlanName: string | null;
   expiredAt: string | null;
+  reason: "renewal_failed" | "manual_renewal_required" | null;
 };
 
 type SavedIntegration = {
@@ -249,7 +250,7 @@ export default function DashboardPage() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<string>("general");
   const [accountLoading, setAccountLoading] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
-  const [billingNotice, setBillingNotice] = useState<BillingNotice>({ planExpired: false, expiredPlanName: null, expiredAt: null });
+  const [billingNotice, setBillingNotice] = useState<BillingNotice>({ planExpired: false, expiredPlanName: null, expiredAt: null, reason: null });
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceReplyLoading, setVoiceReplyLoading] = useState(false);
@@ -489,6 +490,7 @@ export default function DashboardPage() {
         planExpired: Boolean(data.billingNotice?.planExpired),
         expiredPlanName: data.billingNotice?.expiredPlanName || null,
         expiredAt: data.billingNotice?.expiredAt || null,
+        reason: data.billingNotice?.reason || null,
       };
       setProfileName(data.name || "Usuário HYDRA");
       setProfilePlan(planLabel);
@@ -974,7 +976,9 @@ export default function DashboardPage() {
             </p>
             {billingNotice.planExpired && (
               <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                Seu plano {billingNotice.expiredPlanName || "pago"} expirou. A conta voltou para o Free. Atualize o pagamento para reativar os recursos premium.
+                {billingNotice.reason === "manual_renewal_required"
+                  ? `Seu plano ${billingNotice.expiredPlanName || "pago"} terminou e o pagamento via Pix nao renova automaticamente. A conta voltou para o Free e voce precisa pagar novamente para renovar.`
+                  : `Seu plano ${billingNotice.expiredPlanName || "pago"} expirou porque a renovacao automatica no cartao nao foi aprovada. A conta voltou para o Free ate uma nova assinatura ser concluida.`}
               </div>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1735,7 +1739,9 @@ export default function DashboardPage() {
                     />
                     {billingNotice.planExpired && (
                       <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                        O plano {billingNotice.expiredPlanName || "premium"} venceu e a conta foi revertida automaticamente para o Free. Faça um novo pagamento para renovar o acesso.
+                        {billingNotice.reason === "manual_renewal_required"
+                          ? `O plano ${billingNotice.expiredPlanName || "premium"} venceu e o ciclo pago por Pix foi encerrado. A conta foi revertida para o Free e precisa de um novo pagamento para renovar.`
+                          : `O plano ${billingNotice.expiredPlanName || "premium"} venceu porque a renovacao automatica no cartao nao foi concluida. A conta foi revertida para o Free ate uma nova assinatura ser aprovada.`}
                       </div>
                     )}
                     <div className="flex gap-2">

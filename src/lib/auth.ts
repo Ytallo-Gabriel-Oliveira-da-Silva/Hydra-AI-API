@@ -32,6 +32,7 @@ export type BillingNotice = {
   planExpired: boolean;
   expiredPlanName: string | null;
   expiredAt: string | null;
+  reason: "renewal_failed" | "manual_renewal_required" | null;
 };
 
 function shouldUseSecureSessionCookie() {
@@ -93,11 +94,45 @@ export async function getSession(req: NextRequest) {
 async function syncExpiredPlan(session: SessionWithUser): Promise<BillingNotice> {
   const expiredAt = session.user.currentPeriodEndsAt;
 
-  if (!expiredAt || expiredAt > new Date() || session.user.plan.slug === "free") {
+  if (!expiredAt || expiredAt > new Date()) {
     return {
       planExpired: false,
       expiredPlanName: null,
       expiredAt: null,
+      reason: null,
+    };
+  }
+
+  const latestPaidPlanTransaction = await prisma.paymentTransaction.findFirst({
+    where: { userId: session.user.id },
+    include: { plan: true },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  const expiredPlanName =
+    latestPaidPlanTransaction?.plan?.slug && latestPaidPlanTransaction.plan.slug !== "free"
+      ? latestPaidPlanTransaction.plan.name
+      : session.user.plan.slug !== "free"
+        ? session.user.plan.name
+        : null;
+
+  const reason = latestPaidPlanTransaction?.paymentMethod === "pix" ? "manual_renewal_required" : "renewal_failed";
+
+  if (!expiredPlanName) {
+    return {
+      planExpired: false,
+      expiredPlanName: null,
+      expiredAt: null,
+      reason: null,
+    };
+  }
+
+  if (session.user.plan.slug === "free") {
+    return {
+      planExpired: true,
+      expiredPlanName,
+      expiredAt: expiredAt.toISOString(),
+      reason,
     };
   }
 
@@ -105,12 +140,11 @@ async function syncExpiredPlan(session: SessionWithUser): Promise<BillingNotice>
   if (!freePlan) {
     return {
       planExpired: true,
-      expiredPlanName: session.user.plan.name,
+      expiredPlanName,
       expiredAt: expiredAt.toISOString(),
+      reason,
     };
   }
-
-  const expiredPlanName = session.user.plan.name;
 
   await prisma.user.update({
     where: { id: session.user.id },
@@ -124,6 +158,7 @@ async function syncExpiredPlan(session: SessionWithUser): Promise<BillingNotice>
     planExpired: true,
     expiredPlanName,
     expiredAt: expiredAt.toISOString(),
+    reason,
   };
 }
 

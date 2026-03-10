@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
         planExpired?: boolean;
         expiredPlanName?: string | null;
         expiredAt?: string | null;
+        reason?: "renewal_failed" | "manual_renewal_required" | null;
       };
     }).billingNotice;
 
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
         planExpired: billingNotice?.planExpired || false,
         expiredPlanName: billingNotice?.expiredPlanName || null,
         expiredAt: billingNotice?.expiredAt || null,
+        reason: billingNotice?.reason || null,
       },
       createdAt: user.createdAt,
     });

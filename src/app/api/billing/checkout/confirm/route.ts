@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, ApiError } from "@/lib/api-guard";
 import { prisma } from "@/lib/db";
-import { getRenewalDateForPlan } from "@/lib/plans";
+import { getNextAccessEndForPlan } from "@/lib/plans";
 
 const db = prisma as any;
 
@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
       throw new ApiError("O QR Code expirou. Gere um novo pagamento Pix.", 400);
     }
 
-    const renewalAt = getRenewalDateForPlan(transaction.plan.slug);
+    const renewalAt = getNextAccessEndForPlan(
+      transaction.plan.slug,
+      (user as { currentPeriodEndsAt?: Date | null }).currentPeriodEndsAt,
+    );
 
     await prisma.$transaction([
       db.paymentTransaction.update({ where: { id: transaction.id }, data: { status: "paid" } }),
