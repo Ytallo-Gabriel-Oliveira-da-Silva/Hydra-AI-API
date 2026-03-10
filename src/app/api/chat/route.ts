@@ -5,10 +5,10 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { elevenLabsTTS } from "@/lib/providers/elevenlabs";
 import { runwayCreateVideo } from "@/lib/providers/runway";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { resolveHydraVoiceId } from "@/lib/voices";
+import { generateSpeechAudio } from "@/lib/providers/speech";
 
 const schema = z.object({
   message: z.string().min(1),
@@ -136,18 +136,20 @@ export async function POST(req: NextRequest) {
     } else if (isAudioRequest(message)) {
       const audioQuota = await canUse(user, "audio", monthKey);
       if (!audioQuota.allowed) throw new ApiError("Limite de áudio atingido para seu plano", 403);
-      if (!process.env.ELEVENLABS_API_KEY) throw new ApiError("ELEVENLABS_API_KEY ausente", 500);
+      if (!process.env.ELEVENLABS_API_KEY && !process.env.RUNWAY_API_KEY) {
+        throw new ApiError("Configure ELEVENLABS_API_KEY ou RUNWAY_API_KEY para gerar áudio", 500);
+      }
 
       const textToSpeak = cleanGenerativePrompt(message, "audio");
       const chosenVoiceId = resolveHydraVoiceId(voiceId || process.env.ELEVENLABS_VOICE_ID);
-      const audioBase64 = await elevenLabsTTS(textToSpeak, chosenVoiceId);
+      const generated = await generateSpeechAudio(textToSpeak, chosenVoiceId);
       await incrementUsage(user.id, "audio", monthKey);
 
       reply = buildMediaMessage({
         kind: "audio",
         prompt: message,
         text: textToSpeak,
-        audioUrl: `data:audio/mpeg;base64,${audioBase64}`,
+        audioUrl: generated.audioUrl,
         voiceId: chosenVoiceId,
       });
       convId = await ensureConversation(user.id, conversationId, textToSpeak);

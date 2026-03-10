@@ -9,6 +9,13 @@ export type RunwayVideoResponse = {
   duration: number;
 };
 
+export type RunwayAudioResponse = {
+  taskId: string;
+  status: string;
+  url: string;
+  voicePresetId: string;
+};
+
 type RunwayTaskResponse = {
   id: string;
   status?: string;
@@ -131,4 +138,51 @@ export async function runwayCreateVideo(prompt: string, aspectRatio = "16:9", du
   }
 
   throw new Error("Runway demorou demais para concluir o vídeo. Tente novamente em alguns instantes.");
+}
+
+export async function runwayTextToSpeech(prompt: string, voicePresetId: string) {
+  const res = await fetch(`${RUNWAY_API_BASE}/v1/text_to_speech`, {
+    method: "POST",
+    headers: runwayHeaders(),
+    body: JSON.stringify({
+      model: "eleven_multilingual_v2",
+      promptText: prompt,
+      voice: {
+        type: "runway-preset",
+        presetId: voicePresetId,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Runway TTS erro ${res.status}: ${error}`);
+  }
+
+  const created = (await res.json()) as { id?: string };
+  if (!created.id) throw new Error("Runway não retornou o ID da tarefa de áudio");
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    await sleep(5000);
+    const task = await getRunwayTask(created.id);
+    const status = (task.status || "PENDING").toUpperCase();
+
+    if (["SUCCEEDED", "COMPLETED"].includes(status)) {
+      const url = extractOutputUrl(task);
+      if (!url) throw new Error("Runway concluiu a tarefa de áudio, mas não retornou a URL do arquivo");
+
+      return {
+        taskId: created.id,
+        status,
+        url,
+        voicePresetId,
+      } satisfies RunwayAudioResponse;
+    }
+
+    if (["FAILED", "CANCELLED", "ABORTED"].includes(status)) {
+      throw new Error(task.failure || task.error || `Runway TTS falhou com status ${status}`);
+    }
+  }
+
+  throw new Error("Runway demorou demais para concluir o áudio. Tente novamente em alguns instantes.");
 }

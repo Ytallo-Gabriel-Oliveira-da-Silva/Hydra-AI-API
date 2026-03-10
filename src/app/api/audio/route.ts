@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { elevenLabsTTS } from "@/lib/providers/elevenlabs";
+import { generateSpeechAudio } from "@/lib/providers/speech";
 import { findHydraVoiceById, hydraVoiceOptions, resolveHydraVoiceId } from "@/lib/voices";
 
 const schema = z.object({
@@ -33,12 +33,12 @@ export async function POST(req: NextRequest) {
     const chosen = findHydraVoiceById(voiceId) || findHydraVoiceById(resolveHydraVoiceId(voiceId));
     if (!chosen) throw new ApiError("Voz inválida ou não permitida", 400);
 
-    const base64 = await elevenLabsTTS(text, chosen.id);
+    const generated = await generateSpeechAudio(text, chosen.id);
     if (!preview) {
       await incrementUsage(user.id, "audio", monthKey);
     }
 
-    return NextResponse.json({ audio: `data:audio/mpeg;base64,${base64}`, voice: chosen });
+    return NextResponse.json({ audio: generated.audioUrl, voice: chosen, provider: generated.provider });
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar áudio";
