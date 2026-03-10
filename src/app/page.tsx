@@ -43,7 +43,7 @@ export default function Home() {
               <Sparkles className="h-4 w-4" />
               <span>Experiência conversacional avançada, agora em páginas dedicadas</span>
             </div>
-            <h1 className="mt-4 text-4xl font-semibold text-white">Cockpit HYDRA</h1>
+            <h1 className="mt-4 text-4xl font-semibold text-white">HYDRA AI</h1>
             <p className="mt-3 text-lg text-slate-200">
               Painel multimodal com chat, pesquisa, criação visual, voz, vídeo e organização operacional em uma única experiência profissional.
             </p>
