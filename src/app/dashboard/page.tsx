@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
+import { DEFAULT_HYDRA_VOICE_ID, findHydraVoiceById, findHydraVoiceByLabel, hydraVoiceOptions } from "@/lib/voices";
 
 type ThemePreset = {
   id: string;
@@ -86,7 +87,7 @@ const investigations = [
 ];
 
 const defaultSettingsState: SettingsState = {
-  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Cove", separateVoice: false },
+  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Titã", separateVoice: false },
   notifications: {
     responses: "Push",
     groups: "Push",
@@ -142,7 +143,6 @@ type SavedIntegration = {
   hasKey?: boolean;
 };
 
-type VoiceOption = { id: string; label: string };
 type GalleryItem = { id: string; title: string; url: string; createdAt: string };
 
 type SettingsState = {
@@ -246,7 +246,7 @@ export default function DashboardPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceReplyLoading, setVoiceReplyLoading] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>(DEFAULT_HYDRA_VOICE_ID);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [voicePreviewLoading, setVoicePreviewLoading] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -281,16 +281,7 @@ export default function DashboardPage() {
     [theme],
   );
 
-  const voices: VoiceOption[] = [
-    { id: "dtSEyYGNJqjrtBArPCVZ", label: "Titã" },
-    { id: "tMXujoAjiboschVOhAnk", label: "Clara" },
-    { id: "xKhbyU7E3bC6T89Kn26c", label: "Adam" },
-    { id: "bKrvJaCHEqucAEpSzACi", label: "Brian" },
-    { id: "PoPHDFYHijTq7YiSCwE3", label: "Steven" },
-    { id: "uaXmxAsXACgEChuJxq9s", label: "Phil" },
-    { id: "nwj0s2LU9bDWRKND5yzA", label: "Bunty" },
-    { id: "XhNlP8uwiH6XZSFnH1yL", label: "Elizabeth" },
-  ];
+  const selectedVoiceOption = useMemo(() => findHydraVoiceById(selectedVoice) || hydraVoiceOptions[0], [selectedVoice]);
 
   useEffect(() => {
     async function checkPermissions() {
@@ -327,7 +318,7 @@ export default function DashboardPage() {
         setSettingsState(parsed);
       }
       const storedVoice = localStorage.getItem("hydra_voice_id");
-      if (storedVoice) setSelectedVoice(storedVoice);
+      if (storedVoice) setSelectedVoice(findHydraVoiceById(storedVoice)?.id || DEFAULT_HYDRA_VOICE_ID);
     } catch {
       // ignore localStorage parsing errors
     }
@@ -377,9 +368,19 @@ export default function DashboardPage() {
   }, [settingsState, notificationPrefs, dataPrefs, planConfig]);
 
   useEffect(() => {
-    if (selectedVoice && typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       localStorage.setItem("hydra_voice_id", selectedVoice);
     }
+  }, [selectedVoice]);
+
+  useEffect(() => {
+    const voice = findHydraVoiceById(selectedVoice);
+    if (!voice) return;
+
+    setSettingsState((prev) => {
+      if (prev.general.voice === voice.label) return prev;
+      return { ...prev, general: { ...prev.general, voice: voice.label } };
+    });
   }, [selectedVoice]);
 
   useEffect(() => {
@@ -392,6 +393,11 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar configurações");
       if (data.settings) {
+        const persistedVoice = findHydraVoiceByLabel(data.settings.settingsState?.general?.voice);
+        if (persistedVoice && typeof window !== "undefined" && !localStorage.getItem("hydra_voice_id")) {
+          setSelectedVoice(persistedVoice.id);
+        }
+
         if (data.settings.settingsState) {
           setSettingsState((prev: SettingsState) => ({
             ...prev,
@@ -791,6 +797,23 @@ export default function DashboardPage() {
     await audio.play();
   }
 
+  async function previewVoice(voiceId: string) {
+    const voice = findHydraVoiceById(voiceId);
+    if (!voice) throw new Error("Voz inválida");
+
+    const audioRes = await fetch("/api/audio", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: voice.previewText, voiceId, preview: true }),
+    });
+    const audioData = await audioRes.json();
+
+    if (!audioRes.ok) throw new Error(audioData.error || "Erro ao gerar prévia da voz");
+
+    const audio = new Audio(audioData.audio as string);
+    await audio.play();
+  }
+
   async function handleVoiceToText() {
     if (!micAllowed) await requestMedia("audio");
     if (!micAllowed) return;
@@ -1098,6 +1121,13 @@ export default function DashboardPage() {
                   placeholder="Pergunte alguma coisa"
                 />
                 <button
+                  onClick={() => setShowVoicePicker(true)}
+                  className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
+                  title="Escolher voz da IA"
+                >
+                  Voz: {selectedVoiceOption.label}
+                </button>
+                <button
                   onClick={handleVoiceToText}
                   disabled={transcribing}
                   className={clsx(
@@ -1129,6 +1159,14 @@ export default function DashboardPage() {
                 >
                   {voiceReplyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
                 </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                  Voz atual: <span className="font-semibold text-white">{selectedVoiceOption.label}</span>
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                  Essa voz vale para conversar com a IA e para gerar áudios no chat.
+                </span>
               </div>
               <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
             </motion.div>
@@ -1171,6 +1209,7 @@ export default function DashboardPage() {
                     <div key={`${item.voiceId}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                       <p className="text-sm font-semibold text-white">Áudio gerado</p>
                       <p className="mt-1 text-xs text-slate-300">{item.text}</p>
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">Voz: {findHydraVoiceById(item.voiceId)?.label || item.voiceId}</p>
                       <audio controls className="mt-3 w-full" src={item.audioUrl} preload="metadata" />
                       <button onClick={() => downloadAsset(item.audioUrl, "hydra-audio.mp3")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                         <Download className="h-3.5 w-3.5" />
@@ -1355,8 +1394,12 @@ export default function DashboardPage() {
                     <SelectRow
                       label="Voz"
                       value={settingsState.general.voice}
-                      onChange={(v) => setSettingsState((s) => ({ ...s, general: { ...s.general, voice: v } }))}
-                      options={["Cove", "Alloy", "Verse"]}
+                      onChange={(v) => {
+                        const chosenVoice = findHydraVoiceByLabel(v);
+                        if (chosenVoice) setSelectedVoice(chosenVoice.id);
+                        setSettingsState((s) => ({ ...s, general: { ...s.general, voice: v } }));
+                      }}
+                      options={hydraVoiceOptions.map((voice) => voice.label)}
                     />
                     <ToggleRow
                       label="Voz separada"
@@ -1693,7 +1736,8 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div>
                 <p className="text-xs uppercase tracking-wide text-slate-400">Voz</p>
-                <p className="text-lg font-semibold text-white">Escolha a voz para respostas de áudio</p>
+                <p className="text-lg font-semibold text-white">Escolha a voz da HYDRA</p>
+                <p className="mt-1 text-sm text-slate-400">A voz escolhida será usada nas respostas faladas e nos áudios gerados pelo chat.</p>
               </div>
               <button
                 onClick={() => setShowVoicePicker(false)}
@@ -1703,7 +1747,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {voices.map((v) => (
+              {hydraVoiceOptions.map((v) => (
                 <div
                   key={v.id}
                   className={clsx(
@@ -1713,13 +1757,13 @@ export default function DashboardPage() {
                 >
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-white">{v.label}</p>
-                    <p className="text-xs text-slate-400">Clique para escolher</p>
+                    <p className="text-xs text-slate-400">{v.description}</p>
                   </div>
                   <button
                     onClick={async () => {
                       setVoicePreviewLoading(v.id);
                       try {
-                        await playTextAudio(`Olá, eu sou a voz ${v.label}`, v.id);
+                        await previewVoice(v.id);
                       } catch (err) {
                         setChatError(err instanceof Error ? err.message : "Erro ao tocar prévia");
                       } finally {

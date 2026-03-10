@@ -8,6 +8,7 @@ import { stabilityGenerateImage } from "@/lib/providers/stability";
 import { elevenLabsTTS } from "@/lib/providers/elevenlabs";
 import { runwayCreateVideo } from "@/lib/providers/runway";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
+import { resolveHydraVoiceId } from "@/lib/voices";
 
 const schema = z.object({
   message: z.string().min(1),
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
       if (!process.env.ELEVENLABS_API_KEY) throw new ApiError("ELEVENLABS_API_KEY ausente", 500);
 
       const textToSpeak = cleanGenerativePrompt(message, "audio");
-      const chosenVoiceId = voiceId || process.env.ELEVENLABS_VOICE_ID || "dtSEyYGNJqjrtBArPCVZ";
+      const chosenVoiceId = resolveHydraVoiceId(voiceId || process.env.ELEVENLABS_VOICE_ID);
       const audioBase64 = await elevenLabsTTS(textToSpeak, chosenVoiceId);
       await incrementUsage(user.id, "audio", monthKey);
 
