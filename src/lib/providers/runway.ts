@@ -1,6 +1,13 @@
 const RUNWAY_API_BASE = "https://api.dev.runwayml.com";
 const RUNWAY_API_VERSION = process.env.RUNWAY_API_VERSION || "2024-11-06";
 
+export function isRunwayInsufficientCreditsError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  return error.message.includes("You do not have enough credits to run this task")
+    || error.message.includes("Você não tem créditos suficientes para executar esta tarefa");
+}
+
 export type RunwayVideoResponse = {
   taskId: string;
   status: string;

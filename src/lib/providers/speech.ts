@@ -1,5 +1,5 @@
 import { elevenLabsTTS } from "@/lib/providers/elevenlabs";
-import { runwayTextToSpeech } from "@/lib/providers/runway";
+import { isRunwayInsufficientCreditsError, runwayTextToSpeech } from "@/lib/providers/runway";
 import { findHydraVoiceById, resolveHydraVoiceId } from "@/lib/voices";
 
 async function fetchAudioAsDataUrl(url: string) {
@@ -41,14 +41,22 @@ export async function generateSpeechAudio(text: string, requestedVoiceId?: strin
       throw new Error("ElevenLabs exige plano pago para essa voz e o fallback da Runway não está configurado");
     }
 
-    const generated = await runwayTextToSpeech(text, voice.runwayPresetId);
-    const audioUrl = await fetchAudioAsDataUrl(generated.url);
+    try {
+      const generated = await runwayTextToSpeech(text, voice.runwayPresetId);
+      const audioUrl = await fetchAudioAsDataUrl(generated.url);
 
-    return {
-      voiceId: voice.id,
-      voiceLabel: voice.label,
-      provider: "runway" as const,
-      audioUrl,
-    };
+      return {
+        voiceId: voice.id,
+        voiceLabel: voice.label,
+        provider: "runway" as const,
+        audioUrl,
+      };
+    } catch (runwayError) {
+      if (isRunwayInsufficientCreditsError(runwayError)) {
+        throw new Error("A ElevenLabs bloqueou essa voz no plano grátis e a conta da Runway está sem créditos para o fallback de áudio.");
+      }
+
+      throw runwayError;
+    }
   }
 }

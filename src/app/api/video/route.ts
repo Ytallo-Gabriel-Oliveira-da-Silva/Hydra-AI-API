@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { runwayCreateVideo } from "@/lib/providers/runway";
+import { isRunwayInsufficientCreditsError, runwayCreateVideo } from "@/lib/providers/runway";
 import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 
 const schema = z.object({
@@ -35,6 +35,9 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
-    return NextResponse.json({ error: message }, { status });
+    const friendly = isRunwayInsufficientCreditsError(err)
+      ? "A conta da Runway está sem créditos. O limite do plano Free no site já foi liberado, mas o provider de vídeo precisa de saldo para executar a geração."
+      : message;
+    return NextResponse.json({ error: friendly, raw: message }, { status });
   }
 }

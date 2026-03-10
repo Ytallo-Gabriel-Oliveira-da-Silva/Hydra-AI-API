@@ -44,7 +44,9 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Erro ao gerar áudio";
     const friendly = status === 402
       ? "O provider de voz recusou a cobrança desta requisição. Configure créditos válidos no ElevenLabs ou use o fallback local do navegador."
-      : message;
+      : message.includes("Runway está sem créditos") || message.includes("sem créditos para o fallback de áudio")
+        ? "A voz escolhida exigiu fallback do provider e a conta da Runway está sem créditos. A conversa falada ainda pode usar a voz do navegador, mas a geração de arquivo de áudio depende de saldo no provider."
+        : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }
 }

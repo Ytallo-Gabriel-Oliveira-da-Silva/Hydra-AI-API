@@ -5,7 +5,7 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { runwayCreateVideo } from "@/lib/providers/runway";
+import { isRunwayInsufficientCreditsError, runwayCreateVideo } from "@/lib/providers/runway";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { resolveHydraVoiceId } from "@/lib/voices";
 import { generateSpeechAudio } from "@/lib/providers/speech";
@@ -194,7 +194,11 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : message;
+        : isRunwayInsufficientCreditsError(err)
+          ? "A conta da Runway está sem créditos. O recurso continua habilitado no seu plano, mas o provider de vídeo/áudio precisa de saldo para executar a tarefa."
+          : message.includes("sem créditos para o fallback de áudio")
+            ? "A ElevenLabs bloqueou essa voz no plano grátis e a Runway está sem créditos para o fallback."
+            : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }
 }
