@@ -1,15 +1,29 @@
-"use client";
-
 import { SiteFooter } from "@/components/site-footer";
+import { createBreadcrumbStructuredData, createMetadata } from "@/lib/seo";
 import { Bot, ChevronRight, Globe2, Lock, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
+export const metadata = createMetadata({
+  title: "Plataforma multimodal",
+  description:
+    "Conheca a HYDRA AI, plataforma de inteligencia artificial com chat, busca, imagem, audio, video, planos e suporte profissional.",
+  path: "/",
+  keywords: ["HYDRA AI oficial", "chat multimodal", "IA com audio e video"],
+});
+
 export default function Home() {
-  const router = useRouter();
+  const breadcrumbStructuredData = createBreadcrumbStructuredData([
+    { name: "Inicio", path: "/" },
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 px-6 py-12 text-slate-50">
+      <script
+        type="application/ld+json"
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbStructuredData) }}
+      />
       <div className="mx-auto flex max-w-6xl flex-col gap-10">
         <header className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
           <div className="flex items-center gap-3">
@@ -22,18 +36,12 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-200">
-            <button
-              className="rounded-xl border border-white/20 px-3 py-2 transition hover:border-white/40 hover:bg-white/10"
-              onClick={() => router.push("/login")}
-            >
+            <Link className="rounded-xl border border-white/20 px-3 py-2 transition hover:border-white/40 hover:bg-white/10" href="/login">
               Entrar
-            </button>
-            <button
-              className="rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 font-semibold text-white shadow-lg transition hover:opacity-90"
-              onClick={() => router.push("/register")}
-            >
+            </Link>
+            <Link className="rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 font-semibold text-white shadow-lg transition hover:opacity-90" href="/register">
               Criar conta
-            </button>
+            </Link>
           </div>
         </header>
 
@@ -74,28 +82,37 @@ export default function Home() {
             </div>
 
             <div className="mt-10 flex flex-wrap gap-4 text-sm font-semibold text-white">
-              <button
+              <Link
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-5 py-3 shadow-lg transition hover:opacity-90"
-                onClick={() => router.push("/dashboard")}
+                href="/login"
               >
                 Ir para dashboard
                 <ChevronRight className="h-4 w-4" />
-              </button>
-              <button
+              </Link>
+              <Link
                 className="flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 transition hover:border-white/40 hover:bg-white/10"
-                onClick={() => router.push("/register")}
+                href="/register"
               >
                 Criar conta
                 <ChevronRight className="h-4 w-4" />
-              </button>
-              <button
+              </Link>
+              <Link
                 className="flex items-center gap-2 rounded-xl border border-white/20 px-5 py-3 transition hover:border-white/40 hover:bg-white/10"
-                onClick={() => router.push("/login")}
+                href="/login"
               >
                 Já tenho login
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </Link>
             </div>
+
+            <nav aria-label="Atalhos publicos" className="mt-8 grid grid-cols-2 gap-3 text-sm text-slate-200 md:grid-cols-3">
+              <QuickLink href="/plans" label="Planos" description="Compare Free, Plus, Pro e Anual" />
+              <QuickLink href="/support" label="Suporte" description="Central de ajuda e contato" />
+              <QuickLink href="/reset-password" label="Resetar senha" description="Recupere o acesso da conta" />
+              <QuickLink href="/login" label="Login" description="Acesso seguro ao painel" />
+              <QuickLink href="/register" label="Cadastro" description="Crie sua conta na plataforma" />
+              <QuickLink href="/plans/free" label="Plano Free" description="Explore a versao de entrada" />
+            </nav>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-500/10 via-fuchsia-500/10 to-cyan-500/10 p-8">
@@ -142,4 +159,13 @@ function HighlightCard({ icon, title, text }: { icon: ReactNode; title: string; 
 
 function Badge({ children }: { children: ReactNode }) {
   return <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-100">{children}</span>;
+}
+
+function QuickLink({ href, label, description }: { href: string; label: string; description: string }) {
+  return (
+    <Link href={href} className="rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-white/20 hover:bg-white/10">
+      <p className="font-semibold text-white">{label}</p>
+      <p className="mt-1 text-xs text-slate-300">{description}</p>
+    </Link>
+  );
 }

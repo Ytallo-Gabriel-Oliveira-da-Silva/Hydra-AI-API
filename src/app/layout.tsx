@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { organizationStructuredData, siteConfig, websiteStructuredData } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
+  metadataBase: new URL(siteConfig.url),
   title: {
     default: "HYDRA AI | Assistente multimodal com chat, imagem, áudio e automação",
     template: "%s | HYDRA AI",
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
   description:
     "HYDRA AI é uma plataforma multimodal com chat inteligente, geração de imagens, áudio, investigações, projetos, controles parentais e automação operacional em uma única interface.",
   applicationName: "HYDRA AI",
+  referrer: "origin-when-cross-origin",
   keywords: [
     "HYDRA AI",
     "inteligência artificial",
@@ -86,7 +88,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
+      <head>
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationStructuredData) }}
+        />
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
