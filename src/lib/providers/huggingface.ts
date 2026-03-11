@@ -37,6 +37,11 @@ function getFrameCount(duration: number) {
   return Math.max(16, Math.min(96, duration * 8));
 }
 
+function isDurationValidationError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /validation errors/i.test(message) && /duration/i.test(message);
+}
+
 function mimeToExtension(mime: string) {
   if (mime.includes("quicktime")) return "mov";
   if (mime.includes("webm")) return "webm";
@@ -57,25 +62,43 @@ export async function huggingFaceCreateVideo(prompt: string, aspectRatio = "16:9
   const client = new InferenceClient(getHuggingFaceToken());
   const model = getHuggingFaceVideoModel();
   const provider = getHuggingFaceVideoProvider();
+  const requestedDuration = Math.max(2, Math.min(10, Math.round(duration)));
 
-  const video = await client.textToVideo({
-    provider,
-    model,
-    inputs: prompt,
-    parameters: {
-      guidance_scale: 5,
-      num_inference_steps: 30,
-      num_frames: getFrameCount(duration),
-    },
-    duration,
-  });
+  let video: Blob;
+
+  try {
+    video = await client.textToVideo({
+      provider,
+      model,
+      inputs: prompt,
+      parameters: {
+        guidance_scale: 5,
+        num_inference_steps: 30,
+        num_frames: getFrameCount(requestedDuration),
+      },
+      duration: requestedDuration,
+    });
+  } catch (error) {
+    if (!isDurationValidationError(error)) throw error;
+
+    video = await client.textToVideo({
+      provider,
+      model,
+      inputs: prompt,
+      parameters: {
+        guidance_scale: 5,
+        num_inference_steps: 30,
+        num_frames: getFrameCount(requestedDuration),
+      },
+    });
+  }
 
   return {
     provider: "huggingface" as const,
     model,
     url: await saveGeneratedVideo(video),
     ratio: aspectRatio,
-    duration,
+    duration: requestedDuration,
     taskId: nanoid(16),
   } satisfies HuggingFaceVideoResult;
 }

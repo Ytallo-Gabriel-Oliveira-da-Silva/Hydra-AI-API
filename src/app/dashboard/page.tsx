@@ -32,7 +32,7 @@ import type { CSSProperties, ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
-import { parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
+import { getMessagePreview, isEncodedMediaMessage, parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
 
 type ThemePreset = {
   id: string;
@@ -892,6 +892,7 @@ export default function DashboardPage() {
               )}
               {history.map((h) => {
                 const lastMessage = h.messages?.[h.messages.length - 1]?.content || h.messages?.[0]?.content;
+                const preview = getMessagePreview(lastMessage || "") || "Sem mensagens";
                 return (
                   <button
                     key={h.id}
@@ -899,9 +900,9 @@ export default function DashboardPage() {
                     className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/5"
                   >
                     <MessageSquare className="h-4 w-4 text-slate-400" />
-                    <div className="flex-1">
-                      <p className="line-clamp-1 text-xs font-semibold text-white">{h.title || "Sem título"}</p>
-                      <p className="line-clamp-1 text-[11px] text-slate-400">{lastMessage || "Sem mensagens"}</p>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="truncate text-xs font-semibold text-white">{h.title || "Sem título"}</p>
+                      <p className="truncate break-all text-[11px] text-slate-400">{preview}</p>
                     </div>
                   </button>
                 );
@@ -2014,6 +2015,7 @@ function IntegrationForm({ onAdd, loading }: { onAdd: (name: string, apiKey?: st
 function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; content: string; accent: string }) {
   const isUser = role === "user";
   const mediaPayload = !isUser ? parseMediaMessage(content) : null;
+  const hiddenEncodedPayload = !isUser && !mediaPayload && isEncodedMediaMessage(content);
 
   return (
     <div className={clsx("flex", isUser ? "justify-end" : "justify-start")}> 
@@ -2070,6 +2072,8 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
               </a>
             </div>
           </div>
+        ) : hiddenEncodedPayload ? (
+          <p className="text-sm leading-relaxed text-slate-300">Conteúdo multimídia gerado.</p>
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
         )}
