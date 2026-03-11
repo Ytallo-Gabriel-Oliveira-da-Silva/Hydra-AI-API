@@ -87,7 +87,7 @@ const investigations = [
 ];
 
 const defaultSettingsState: SettingsState = {
-  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Deepgram padrão", separateVoice: false },
+  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Voz padrão", separateVoice: false },
   notifications: {
     responses: "Push",
     groups: "Push",
@@ -1151,10 +1151,10 @@ export default function DashboardPage() {
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  Voz sintetizada com <span className="font-semibold text-white">Deepgram</span>
+                  Voz sintetizada disponível
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  O chat por voz usa Deepgram para áudio sem seleção manual de voz e Groq para transcrição.
+                  O chat por voz está ativo com resposta falada e transcrição automática.
                 </span>
               </div>
               <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
@@ -1204,7 +1204,6 @@ export default function DashboardPage() {
                     <div key={`${item.audioUrl}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                       <p className="text-sm font-semibold text-white">Áudio gerado</p>
                       <p className="mt-1 text-xs text-slate-300">{item.text}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">Provider: {item.provider || "deepgram"}</p>
                       <audio controls className="mt-3 w-full" src={item.audioUrl} preload="metadata" />
                       <button onClick={() => downloadAsset(item.audioUrl, "hydra-audio.mp3")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                         <Download className="h-3.5 w-3.5" />
