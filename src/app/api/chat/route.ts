@@ -5,7 +5,7 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { falCreateVideo, getFalFriendlyError, isFalCreditError } from "@/lib/providers/fal";
+import { falCreateVideo, getFalFriendlyError, isFalCreditError, isFalForbiddenError } from "@/lib/providers/fal";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { generateSpeechAudio } from "@/lib/providers/speech";
 
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         const messageText = error instanceof Error ? error.message : "";
-        if (!/402|429/.test(messageText) && !messageText.includes("FAL_KEY ausente") && !isFalCreditError(error)) throw error;
+        if (!/402|429/.test(messageText) && !messageText.includes("FAL_KEY ausente") && !isFalCreditError(error) && !isFalForbiddenError(error)) throw error;
         reply = buildMediaUnavailableReply("video");
       }
 
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : isFalCreditError(err)
+        : isFalCreditError(err) || isFalForbiddenError(err)
           ? getFalFriendlyError(err)
         : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
