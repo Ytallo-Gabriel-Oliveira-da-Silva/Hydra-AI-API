@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { huggingFaceCreateVideo } from "@/lib/providers/huggingface";
+import { getHuggingFaceFriendlyError, huggingFaceCreateVideo, isHuggingFaceCreditError } from "@/lib/providers/huggingface";
 import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 
 const schema = z.object({
@@ -37,6 +37,8 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
     const friendly = status === 402
       ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos do Hugging Face."
+      : isHuggingFaceCreditError(err)
+        ? getHuggingFaceFriendlyError(err)
       : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

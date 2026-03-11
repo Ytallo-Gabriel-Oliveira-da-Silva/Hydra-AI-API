@@ -5,6 +5,13 @@ import { InferenceClient } from "@huggingface/inference";
 
 type HuggingFaceVideoProvider = "auto" | "fal-ai" | "hf-inference" | "replicate" | "wavespeed";
 
+const HUGGINGFACE_CREDIT_PATTERNS = [
+  /failed to perform inference/i,
+  /depleted your monthly included credits/i,
+  /purchase pre-paid credits/i,
+  /subscribe to pro/i,
+] as const;
+
 export type HuggingFaceVideoResult = {
   provider: "huggingface";
   model: string;
@@ -40,6 +47,20 @@ function getFrameCount(duration: number) {
 function isDurationValidationError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return /validation errors/i.test(message) && /duration/i.test(message);
+}
+
+export function isHuggingFaceCreditError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return HUGGINGFACE_CREDIT_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+export function getHuggingFaceFriendlyError(error: unknown) {
+  if (isHuggingFaceCreditError(error)) {
+    return "O Hugging Face ficou sem créditos disponíveis para gerar vídeo nesta conta. O recurso continua ativo no seu plano, mas a geração depende de saldo no provider.";
+  }
+
+  const message = error instanceof Error ? error.message : "Erro ao gerar vídeo";
+  return message;
 }
 
 function mimeToExtension(mime: string) {
