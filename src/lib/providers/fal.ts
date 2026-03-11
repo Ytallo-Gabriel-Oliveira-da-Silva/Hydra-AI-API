@@ -27,7 +27,11 @@ const FAL_FORBIDDEN_PATTERNS = [
   /unauthorized/i,
 ] as const;
 
-const FAL_FALLBACK_VIDEO_MODEL = "fal-ai/kling-video/v1/standard/text-to-video";
+const FAL_DEFAULT_VIDEO_MODEL = "fal-ai/pika/v2.2/text-to-video";
+const FAL_FALLBACK_VIDEO_MODELS = [
+  FAL_DEFAULT_VIDEO_MODEL,
+  "fal-ai/kling-video/v1/standard/text-to-video",
+] as const;
 
 export type FalVideoResult = {
   provider: "fal";
@@ -158,7 +162,7 @@ function getFalKey() {
 }
 
 export function getFalVideoModel() {
-  return process.env.FAL_VIDEO_MODEL?.trim() || FAL_FALLBACK_VIDEO_MODEL;
+  return process.env.FAL_VIDEO_MODEL?.trim() || FAL_DEFAULT_VIDEO_MODEL;
 }
 
 function configureFalClient() {
@@ -188,6 +192,13 @@ function normalizeDuration(model: string, duration: number) {
     };
   }
 
+  if (model.includes("/pika/")) {
+    return {
+      requested: rounded <= 7 ? 5 : 10,
+      input: rounded <= 7 ? 5 : 10,
+    };
+  }
+
   return {
     requested: rounded <= 7 ? 5 : 10,
     input: rounded <= 7 ? 5 : 10,
@@ -210,7 +221,7 @@ export function getFalFriendlyError(error: unknown) {
   }
 
   if (isFalForbiddenError(error)) {
-    return "A chave atual da fal.ai não tem permissão para usar este modelo de vídeo. Ajuste o FAL_VIDEO_MODEL ou use uma chave com acesso liberado.";
+    return "A chave atual da fal.ai não tem permissão para usar os modelos de vídeo configurados. Ajuste o FAL_VIDEO_MODEL ou use uma chave com acesso liberado.";
   }
 
   const message = error instanceof Error ? error.message : "Erro ao gerar vídeo";
@@ -236,19 +247,34 @@ export async function falCreateVideo(prompt: string, aspectRatio = "16:9", durat
 
   const preferredModel = getFalVideoModel();
   const ratio = normalizeAspectRatio(aspectRatio);
-  let model = preferredModel;
+  const candidateModels = [
+    preferredModel,
+    ...FAL_FALLBACK_VIDEO_MODELS.filter((model) => model !== preferredModel),
+  ];
+
+  let model = candidateModels[0];
   let normalizedDuration = normalizeDuration(model, duration);
   let result;
+  let lastError: unknown;
 
-  try {
-    result = await subscribeFalVideo(model, prompt, ratio, normalizedDuration.input);
-  } catch (error) {
-    const canFallbackModel = model !== FAL_FALLBACK_VIDEO_MODEL && isFalForbiddenError(error);
-    if (!canFallbackModel) throw error;
-
-    model = FAL_FALLBACK_VIDEO_MODEL;
+  for (const candidateModel of candidateModels) {
+    model = candidateModel;
     normalizedDuration = normalizeDuration(model, duration);
-    result = await subscribeFalVideo(model, prompt, ratio, normalizedDuration.input);
+
+    try {
+      result = await subscribeFalVideo(model, prompt, ratio, normalizedDuration.input);
+      lastError = undefined;
+      break;
+    } catch (error) {
+      lastError = error;
+      if (!isFalForbiddenError(error) || candidateModel === candidateModels[candidateModels.length - 1]) {
+        throw error;
+      }
+    }
+  }
+
+  if (!result) {
+    throw lastError instanceof Error ? lastError : new Error("Falha ao gerar vídeo na fal.ai.");
   }
 
   const data = result.data as FalVideoResponse;

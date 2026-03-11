@@ -42,7 +42,7 @@ Use `.env.example` como referencia. Em producao, configure essas variaveis no pr
 - `JWT_SECRET`
 - `RESET_TOKEN_SECRET`
 
-Valor recomendado para `FAL_VIDEO_MODEL`: `fal-ai/kling-video/v1/standard/text-to-video`
+Valor recomendado para `FAL_VIDEO_MODEL`: `fal-ai/pika/v2.2/text-to-video`
 
 ## Deploy na Vercel
 
