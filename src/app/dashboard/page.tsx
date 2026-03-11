@@ -868,10 +868,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen text-slate-50" style={backgroundStyle}>
-      <div className="mx-auto flex max-w-7xl gap-6 px-6 py-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:flex-row">
         <aside
-          className="sticky top-8 flex w-72 shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 backdrop-blur"
-          style={{ height: workspaceHeight }}
+          className="order-2 flex w-full shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 backdrop-blur lg:order-1 lg:w-72 lg:sticky lg:top-8"
+          style={{ height: typeof window === "undefined" ? undefined : undefined }}
         >
           <button
             onClick={startNewChat}
@@ -881,7 +881,7 @@ export default function DashboardPage() {
             Novo chat
           </button>
 
-          <div className="mt-4 space-y-1">
+          <div className="mt-4 grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
             {nav.map((item) => (
               <button
                 key={item.id}
@@ -898,9 +898,9 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mt-6 flex min-h-0 flex-col overflow-hidden lg:flex-1">
             <p className="text-xs uppercase tracking-wide text-slate-400">Histórico</p>
-            <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="mt-2 max-h-64 overflow-y-auto pr-1 lg:min-h-0 lg:max-h-none lg:flex-1">
               <div className="space-y-1">
                 {historyLoading && <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">Carregando histórico...</p>}
                 {historyError && (
@@ -954,38 +954,38 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-1 flex-col" style={{ minHeight: workspaceHeight }}>
+        <main className="order-1 flex min-w-0 flex-1 flex-col lg:order-2" style={{ minHeight: "auto" }}>
           <div className="relative grid gap-4 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] xl:items-stretch">
-            <div className="flex min-h-[168px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 px-6 py-5 shadow-xl backdrop-blur-sm">
+            <div className="flex min-h-[148px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 px-5 py-4 shadow-xl backdrop-blur-sm sm:min-h-[168px] sm:px-6 sm:py-5">
               <p className="text-sm uppercase tracking-[0.3em] text-slate-300">Modo</p>
               <div className="space-y-2">
-                <p className="text-[clamp(2rem,3vw,3rem)] font-semibold leading-none text-white">HYDRA AI</p>
-                <p className="text-lg font-medium text-slate-200">Multimodal</p>
+                <p className="text-[clamp(1.6rem,6vw,3rem)] font-semibold leading-none text-white">HYDRA AI</p>
+                <p className="text-base font-medium text-slate-200 sm:text-lg">Multimodal</p>
               </div>
-              <p className="text-sm text-slate-400">Chat, voz, câmera e mídia em um único workspace.</p>
+              <p className="text-xs text-slate-400 sm:text-sm">Chat, voz, câmera e mídia em um único workspace.</p>
             </div>
 
-            <div className="flex min-h-[168px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm">
+            <div className="flex min-h-[148px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-3 shadow-xl backdrop-blur-sm sm:min-h-[168px] sm:p-4">
               <div className="grid gap-3 md:grid-cols-2">
                 {(!micAllowed || !camAllowed) ? (
                   <button
                     onClick={requestMediaPermissions}
-                    className="flex min-h-[72px] items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
+                    className="flex min-h-[64px] items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15 sm:min-h-[72px]"
                   >
                     Permitir microfone e câmera
                   </button>
                 ) : (
-                  <div className="flex min-h-[72px] items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                  <div className="flex min-h-[64px] items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-100 sm:min-h-[72px]">
                     Permissões de mídia liberadas
                   </div>
                 )}
 
                 <button
                   onClick={() => setShowThemes((v) => !v)}
-                  className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-cyan-400/15"
+                  className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-cyan-400/15 sm:min-h-[72px]"
                 >
                   <Palette className="h-4 w-4" />
-                  <span>Tema: {theme.label}</span>
+                  <span className="text-left">Tema: {theme.label}</span>
                   <Sparkles className="h-4 w-4 text-amber-300" />
                 </button>
 
@@ -1017,7 +1017,7 @@ export default function DashboardPage() {
             </div>
 
             {showThemes && (
-              <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-64 rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl xl:right-4">
+              <div className="absolute left-0 right-0 top-[calc(100%+0.75rem)] z-20 rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl sm:left-auto sm:right-0 sm:w-64 xl:right-4">
                 {themes.map((preset) => (
                   <button
                     key={preset.id}
@@ -1047,11 +1047,11 @@ export default function DashboardPage() {
           <div className="mt-6 flex-1">
           {selected === "chat" && (
             <div className="flex h-full flex-col gap-4">
-              <motion.div whileHover={{ y: -3 }} className="flex min-h-[calc(100vh-13.5rem)] flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl" style={surfaceStyle}>
+              <motion.div whileHover={{ y: -3 }} className="flex min-h-[auto] flex-col rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl sm:p-6 lg:min-h-[calc(100vh-13.5rem)] lg:p-8" style={surfaceStyle}>
                 <div className="flex flex-wrap items-start gap-3">
                   <div className="text-left">
-                    <h1 className="text-3xl font-semibold text-white">Pronto para conversar com a HYDRA AI?</h1>
-                    <p className="mt-1 text-slate-200">Pergunte qualquer coisa ou continue um chat multimodal.</p>
+                    <h1 className="text-2xl font-semibold text-white sm:text-3xl">Pronto para conversar com a HYDRA AI?</h1>
+                    <p className="mt-1 text-sm text-slate-200 sm:text-base">Pergunte qualquer coisa ou continue um chat multimodal.</p>
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     <button
@@ -1064,7 +1064,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 min-h-[240px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-4 text-left">
+                <div className="mt-4 min-h-[220px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-3 text-left sm:min-h-[240px] sm:p-4">
                   {messages.length === 0 && (
                     <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-slate-200">
                       <Sparkles className="h-4 w-4 text-amber-300" />
@@ -1093,9 +1093,9 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-4 shadow-xl backdrop-blur-sm">
+                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-3 shadow-xl backdrop-blur-sm sm:p-4">
                   <div className="flex items-start gap-3">
-                    <div className="mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200">
+                    <div className="mt-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200 sm:flex">
                       <Plus className="h-4 w-4" />
                     </div>
                     <div className="flex-1">
@@ -1108,18 +1108,18 @@ export default function DashboardPage() {
                             sendMessage();
                           }
                         }}
-                        rows={2}
-                        className="min-h-[84px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none"
+                        rows={3}
+                        className="min-h-[96px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none sm:min-h-[84px]"
                         placeholder="Pergunte alguma coisa"
                       />
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                      <div className="mt-3 flex flex-col gap-3 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={handleVoiceToText}
                             disabled={transcribing}
                             className={clsx(
-                              "rounded-2xl p-3 text-white transition",
+                              "rounded-2xl p-2.5 text-white transition sm:p-3",
                               transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
                             )}
                             title="Falar e transcrever"
@@ -1130,7 +1130,7 @@ export default function DashboardPage() {
                             disabled={sending || !input.trim()}
                             onClick={sendMessage}
                             className={clsx(
-                              "rounded-2xl p-3 text-white transition",
+                              "rounded-2xl p-2.5 text-white transition sm:p-3",
                               sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
                             )}
                           >
@@ -1140,7 +1140,7 @@ export default function DashboardPage() {
                             onClick={handleVoiceConversation}
                             disabled={voiceReplyLoading}
                             className={clsx(
-                              "rounded-2xl p-3 text-white transition",
+                              "rounded-2xl p-2.5 text-white transition sm:p-3",
                               voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
                             )}
                             title="Falar e ouvir a resposta"
@@ -1155,7 +1155,7 @@ export default function DashboardPage() {
               </motion.div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-sm">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Workspace</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
                     <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-cyan-100">Chat multimodal ativo</span>
@@ -1167,7 +1167,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-sm">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Plano</p>
                   <p className="mt-2 text-2xl font-semibold text-white">{profilePlan}</p>
                   <p className="mt-1 text-sm text-slate-300">
