@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       const payment = await createAsaasPixPayment({
         customer: customer.id,
         billingType: "PIX",
-        value: Number((amount / 100).toFixed(2)),
+        value: Number(amount.toFixed(2)),
         dueDate: formatDateOnly(new Date()),
         description: `Assinatura ${plan.name} - HYDRA AI`,
         externalReference: transaction.id,
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
           name: plan.name,
           description: `Assinatura ${plan.name} - HYDRA AI`,
           quantity: 1,
-          value: Number((amount / 100).toFixed(2)),
+          value: Number(amount.toFixed(2)),
         },
       ],
       subscription: {
