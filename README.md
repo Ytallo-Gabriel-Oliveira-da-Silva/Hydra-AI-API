@@ -42,6 +42,8 @@ Use `.env.example` como referencia. Em producao, configure essas variaveis no pr
 - `JWT_SECRET`
 - `RESET_TOKEN_SECRET`
 
+Valor recomendado para `FAL_VIDEO_MODEL`: `fal-ai/kling-video/v1/standard/text-to-video`
+
 ## Deploy na Vercel
 
 Este projeto funciona bem na Vercel, mas nao com SQLite local em producao. O valor `file:./data.db` serve apenas para desenvolvimento local.

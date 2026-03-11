@@ -19,6 +19,16 @@ const FAL_CREDIT_PATTERNS = [
   /payment required/i,
 ] as const;
 
+const FAL_FORBIDDEN_PATTERNS = [
+  /forbidden/i,
+  /permission/i,
+  /not authorized/i,
+  /access denied/i,
+  /unauthorized/i,
+] as const;
+
+const FAL_FALLBACK_VIDEO_MODEL = "fal-ai/kling-video/v1/standard/text-to-video";
+
 export type FalVideoResult = {
   provider: "fal";
   model: string;
@@ -148,7 +158,7 @@ function getFalKey() {
 }
 
 export function getFalVideoModel() {
-  return process.env.FAL_VIDEO_MODEL?.trim() || "fal-ai/veo2";
+  return process.env.FAL_VIDEO_MODEL?.trim() || FAL_FALLBACK_VIDEO_MODEL;
 }
 
 function configureFalClient() {
@@ -171,10 +181,22 @@ function normalizeDuration(model: string, duration: number) {
     };
   }
 
+  if (model.includes("kling-video")) {
+    return {
+      requested: rounded <= 7 ? 5 : 10,
+      input: rounded <= 7 ? 5 : 10,
+    };
+  }
+
   return {
     requested: rounded <= 7 ? 5 : 10,
     input: rounded <= 7 ? 5 : 10,
   };
+}
+
+export function isFalForbiddenError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return FAL_FORBIDDEN_PATTERNS.some((pattern) => pattern.test(message));
 }
 
 export function isFalCreditError(error: unknown) {
@@ -187,28 +209,47 @@ export function getFalFriendlyError(error: unknown) {
     return "A conta da fal.ai ficou sem créditos disponíveis para gerar vídeo. O recurso continua ativo no seu plano, mas a geração depende de saldo no provider.";
   }
 
+  if (isFalForbiddenError(error)) {
+    return "A chave atual da fal.ai não tem permissão para usar este modelo de vídeo. Ajuste o FAL_VIDEO_MODEL ou use uma chave com acesso liberado.";
+  }
+
   const message = error instanceof Error ? error.message : "Erro ao gerar vídeo";
   return message;
 }
 
-export async function falCreateVideo(prompt: string, aspectRatio = "16:9", duration = 6, speechText?: string) {
-  configureFalClient();
-
-  const model = getFalVideoModel();
-  const ratio = normalizeAspectRatio(aspectRatio);
-  const normalizedDuration = normalizeDuration(model, duration);
-
-  const result = await fal.subscribe(model, {
+async function subscribeFalVideo(model: string, prompt: string, ratio: string, duration: string | number) {
+  return fal.subscribe(model, {
     input: {
       prompt,
       aspect_ratio: ratio,
-      duration: normalizedDuration.input,
+      duration,
       enhance_prompt: true,
       auto_fix: true,
     },
     logs: false,
     startTimeout: 30,
   });
+}
+
+export async function falCreateVideo(prompt: string, aspectRatio = "16:9", duration = 6, speechText?: string) {
+  configureFalClient();
+
+  const preferredModel = getFalVideoModel();
+  const ratio = normalizeAspectRatio(aspectRatio);
+  let model = preferredModel;
+  let normalizedDuration = normalizeDuration(model, duration);
+  let result;
+
+  try {
+    result = await subscribeFalVideo(model, prompt, ratio, normalizedDuration.input);
+  } catch (error) {
+    const canFallbackModel = model !== FAL_FALLBACK_VIDEO_MODEL && isFalForbiddenError(error);
+    if (!canFallbackModel) throw error;
+
+    model = FAL_FALLBACK_VIDEO_MODEL;
+    normalizedDuration = normalizeDuration(model, duration);
+    result = await subscribeFalVideo(model, prompt, ratio, normalizedDuration.input);
+  }
 
   const data = result.data as FalVideoResponse;
   const remoteVideoUrl = data.video?.url;
