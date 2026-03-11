@@ -26,6 +26,7 @@ import {
   User,
   Wand2,
   Workflow,
+  X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CSSProperties, ElementType, ReactNode } from "react";
@@ -151,6 +152,11 @@ type SavedIntegration = {
 
 type GalleryItem = { id: string; title: string; url: string; createdAt: string };
 
+type MediaViewerState =
+  | { kind: "image"; url: string; title: string; subtitle?: string }
+  | { kind: "video"; url: string; title: string; subtitle?: string }
+  | null;
+
 type SettingsState = {
   general: {
     appearance: string;
@@ -253,6 +259,7 @@ export default function DashboardPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceReplyLoading, setVoiceReplyLoading] = useState(false);
+  const [mediaViewer, setMediaViewer] = useState<MediaViewerState>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const settingsHydratedRef = useRef(false);
   const saveSettingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -370,6 +377,15 @@ export default function DashboardPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = mediaViewer ? "hidden" : previous;
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mediaViewer]);
 
   async function loadPersistedSettings() {
     try {
@@ -1068,7 +1084,13 @@ export default function DashboardPage() {
                   </div>
                 )}
                 {messages.map((msg, idx) => (
-                  <MessageBubble key={`${msg.role}-${idx}-${msg.content.slice(0, 8)}`} role={msg.role} content={msg.content} accent={theme.accentFrom} />
+                  <MessageBubble
+                    key={`${msg.role}-${idx}-${msg.content.slice(0, 8)}`}
+                    role={msg.role}
+                    content={msg.content}
+                    accent={theme.accentFrom}
+                    onOpenMedia={(viewer) => setMediaViewer(viewer)}
+                  />
                 ))}
                 <div ref={messagesEndRef} />
               </div>
@@ -1158,6 +1180,12 @@ export default function DashboardPage() {
                           <Download className="h-3.5 w-3.5" />
                           Baixar
                         </button>
+                        <button
+                          onClick={() => setMediaViewer({ kind: "image", url: item.url, title: item.title || "Imagem gerada" })}
+                          className="flex items-center gap-1 rounded-full border border-white/20 px-2 py-1 text-white hover:bg-white/10"
+                        >
+                          Abrir
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1196,15 +1224,31 @@ export default function DashboardPage() {
                       <p className="text-sm font-semibold text-white">Vídeo gerado</p>
                       <p className="mt-1 text-xs text-slate-300">{item.prompt}</p>
                       <video controls playsInline className="mt-3 max-h-56 w-full rounded-2xl bg-black/40" src={item.url} preload="metadata" />
-                      <button onClick={() => downloadAsset(item.url, "hydra-video.mp4")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
-                        <Download className="h-3.5 w-3.5" />
-                        Baixar vídeo
-                      </button>
+                      <div className="mt-3 flex gap-2">
+                        <button onClick={() => downloadAsset(item.url, "hydra-video.mp4")} className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                          <Download className="h-3.5 w-3.5" />
+                          Baixar vídeo
+                        </button>
+                        <button
+                          onClick={() => setMediaViewer({ kind: "video", url: item.url, title: "Vídeo gerado", subtitle: item.prompt })}
+                          className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+                        >
+                          Abrir
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </Card>
             </div>
+          )}
+
+          {mediaViewer && (
+            <MediaViewerModal
+              viewer={mediaViewer}
+              onClose={() => setMediaViewer(null)}
+              onDownload={() => downloadAsset(mediaViewer.url, mediaViewer.kind === "image" ? "hydra-image.png" : "hydra-video.mp4")}
+            />
           )}
 
           {selected === "projects" && (
@@ -2012,7 +2056,7 @@ function IntegrationForm({ onAdd, loading }: { onAdd: (name: string, apiKey?: st
   );
 }
 
-function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; content: string; accent: string }) {
+function MessageBubble({ role, content, accent, onOpenMedia }: { role: "user" | "assistant"; content: string; accent: string; onOpenMedia: (viewer: MediaViewerState) => void }) {
   const isUser = role === "user";
   const mediaPayload = !isUser ? parseMediaMessage(content) : null;
   const hiddenEncodedPayload = !isUser && !mediaPayload && isEncodedMediaMessage(content);
@@ -2038,9 +2082,12 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
               <button onClick={() => downloadAsset(mediaPayload.url, "hydra-image.png")} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                 Baixar
               </button>
-              <a href={mediaPayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
+              <button
+                onClick={() => onOpenMedia({ kind: "image", url: mediaPayload.url, title: "Imagem gerada", subtitle: mediaPayload.prompt })}
+                className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+              >
                 Abrir
-              </a>
+              </button>
             </div>
           </div>
         ) : mediaPayload?.kind === "audio" ? (
@@ -2067,9 +2114,12 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
               <button onClick={() => downloadAsset(mediaPayload.url, "hydra-video.mp4")} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                 Baixar
               </button>
-              <a href={mediaPayload.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">
+              <button
+                onClick={() => onOpenMedia({ kind: "video", url: mediaPayload.url, title: "Vídeo gerado", subtitle: mediaPayload.prompt })}
+                className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+              >
                 Abrir
-              </a>
+              </button>
             </div>
           </div>
         ) : hiddenEncodedPayload ? (
@@ -2077,6 +2127,37 @@ function MessageBubble({ role, content, accent }: { role: "user" | "assistant"; 
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MediaViewerModal({ viewer, onClose, onDownload }: { viewer: Exclude<MediaViewerState, null>; onClose: () => void; onDownload: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-5xl rounded-3xl border border-white/10 bg-[#08111f] p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-4 flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-white">{viewer.title}</p>
+            {viewer.subtitle && <p className="mt-1 text-sm text-slate-300">{viewer.subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onDownload} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+              Baixar
+            </button>
+            <button onClick={onClose} className="rounded-xl border border-white/15 p-2 text-white hover:bg-white/10" aria-label="Fechar visualização">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex max-h-[78vh] min-h-[360px] items-center justify-center overflow-hidden rounded-2xl bg-black/40">
+          {viewer.kind === "image" ? (
+            <img src={viewer.url} alt={viewer.title} className="max-h-[78vh] w-full object-contain" />
+          ) : (
+            <video controls playsInline autoPlay className="max-h-[78vh] w-full bg-black object-contain" src={viewer.url} preload="metadata" />
+          )}
+        </div>
       </div>
     </div>
   );

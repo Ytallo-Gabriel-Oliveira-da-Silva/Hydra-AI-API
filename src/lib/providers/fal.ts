@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { nanoid } from "nanoid";
 import { fal } from "@fal-ai/client";
 
@@ -62,28 +60,6 @@ function normalizeDuration(model: string, duration: number) {
   };
 }
 
-function mimeToExtension(mime: string) {
-  if (mime.includes("quicktime")) return "mov";
-  if (mime.includes("webm")) return "webm";
-  return "mp4";
-}
-
-async function saveGeneratedVideoFromUrl(sourceUrl: string) {
-  const response = await fetch(sourceUrl);
-  if (!response.ok) {
-    throw new Error(`Fal.ai retornou uma URL de vídeo inválida: ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const bytes = Buffer.from(await blob.arrayBuffer());
-  const extension = mimeToExtension(blob.type || "video/mp4");
-  const fileName = `hydra-video-${nanoid(12)}.${extension}`;
-  const publicDir = path.join(process.cwd(), "public", "generated", "videos");
-  await mkdir(publicDir, { recursive: true });
-  await writeFile(path.join(publicDir, fileName), bytes);
-  return `/generated/videos/${fileName}`;
-}
-
 export function isFalCreditError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return FAL_CREDIT_PATTERNS.some((pattern) => pattern.test(message));
@@ -126,9 +102,9 @@ export async function falCreateVideo(prompt: string, aspectRatio = "16:9", durat
   return {
     provider: "fal" as const,
     model,
-    url: await saveGeneratedVideoFromUrl(remoteVideoUrl),
+    url: remoteVideoUrl,
     ratio,
     duration: normalizedDuration.requested,
-    taskId: result.requestId,
+    taskId: result.requestId || nanoid(16),
   } satisfies FalVideoResult;
 }
