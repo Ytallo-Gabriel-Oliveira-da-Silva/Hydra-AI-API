@@ -5,9 +5,12 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { falCreateVideo, getFalFriendlyError, isFalCreditError, isFalForbiddenError } from "@/lib/providers/fal";
+import { getPiapiFriendlyError, isPiapiAuthError, isPiapiCreditError, isPiapiRateLimitError, piapiCreateVideo } from "@/lib/providers/piapi";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { generateSpeechAudio } from "@/lib/providers/speech";
+import { tavilySearch } from "@/lib/providers/tavily";
+import { buildOpsMemoryEntry, findRelevantMemories, getUserAgentContext, saveAgentMemory } from "@/lib/agent-memory";
+import { getOpsPlaybookContext, isOpsQuery, shouldUseWebResearch } from "@/lib/ops-playbook";
 
 const schema = z.object({
   message: z.string().min(1),
@@ -111,13 +114,111 @@ async function ensureConversation(userId: string, conversationId: string | undef
   return conv.id;
 }
 
-function systemPrompt(country: string) {
-  return (
-    "Você é a HYDRA AI, multimodal, modos: robótico, profissional, formal, informal, investigativo." +
-    " Respeite leis e regras do país de origem: " + country +
-    " Seja autogerativa: proponha próximos passos e summarize quando útil." +
-    " Respeite limites de segurança, não produza conteúdo ilegal ou nocivo."
-  );
+type WebResearchSnippet = {
+  title: string;
+  url: string;
+  content: string;
+};
+
+function buildSettingsContext(personalization: {
+  tone?: string;
+  traits?: string[];
+  instructions?: string;
+  nickname?: string;
+  occupation?: string;
+  about?: string;
+}) {
+  const parts = [
+    personalization.nickname ? `Nome preferido do usuário: ${personalization.nickname}.` : null,
+    personalization.occupation ? `Ocupação: ${personalization.occupation}.` : null,
+    personalization.about ? `Contexto do usuário: ${personalization.about}.` : null,
+    personalization.tone ? `Tom preferido: ${personalization.tone}.` : null,
+    personalization.traits?.length ? `Traços preferidos: ${personalization.traits.join(", ")}.` : null,
+    personalization.instructions ? `Instruções personalizadas do usuário: ${personalization.instructions}.` : null,
+  ].filter(Boolean);
+
+  return parts.join(" ");
+}
+
+function formatWebResearch(results: unknown) {
+  const records = Array.isArray((results as { results?: unknown[] } | null)?.results)
+    ? ((results as { results: unknown[] }).results)
+    : Array.isArray((results as { data?: unknown[] } | null)?.data)
+      ? ((results as { data: unknown[] }).data)
+      : [];
+
+  return records
+    .map((item) => {
+      const record = item && typeof item === "object" ? item as Record<string, unknown> : null;
+      return {
+        title: typeof record?.title === "string" ? record.title : "Fonte sem título",
+        url: typeof record?.url === "string" ? record.url : "",
+        content: typeof record?.content === "string"
+          ? record.content
+          : typeof record?.snippet === "string"
+            ? record.snippet
+            : "",
+      } satisfies WebResearchSnippet;
+    })
+    .filter((item) => item.content || item.url)
+    .slice(0, 4)
+    .map((item, index) => `[${index + 1}] ${item.title} ${item.url}\n${item.content}`)
+    .join("\n\n");
+}
+
+async function buildResearchContext(message: string, enabled: boolean) {
+  if (!enabled || !process.env.TAVILY_API_KEY || !shouldUseWebResearch(message)) return "";
+
+  try {
+    const results = await tavilySearch(message);
+    const formatted = formatWebResearch(results);
+    return formatted ? `Pesquisa externa recente:\n${formatted}` : "";
+  } catch {
+    return "";
+  }
+}
+
+async function getConversationContext(userId: string, conversationId?: string) {
+  if (!conversationId) return [] as { role: string; content: string }[];
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, userId },
+    include: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      },
+    },
+  });
+
+  return (conversation?.messages || [])
+    .slice()
+    .reverse()
+    .map((message) => ({ role: message.role, content: message.content }));
+}
+
+function systemPrompt(country: string, context: {
+  settings: string;
+  memories: string;
+  opsMode: boolean;
+  opsPlaybook: string;
+  webResearch: string;
+}) {
+  return [
+    "Você é a HYDRA AI, assistente multimodal, operacional e proativa.",
+    `Respeite leis e regras do país de origem: ${country}.`,
+    "Seja autogerativa dentro do que o sistema permite: proponha próximos passos, detecte inconsistências, revise a própria resposta antes de enviar e prefira corrigir a causa raiz.",
+    "Você pode ter humor leve e inteligente quando combinar com o contexto, sem virar resposta boba.",
+    "Quando houver erro técnico, aja como engenheiro sênior: diagnostique, liste hipóteses, indique validações e entregue comandos objetivos.",
+    "Quando o assunto for deploy, VPS, PM2, Nginx, Prisma ou variáveis de ambiente, priorize mitigação, rollback seguro, verificação final e prevenção de recorrência.",
+    "Se existirem memórias úteis do usuário, use-as. Se houver pesquisa externa, trate-a como contexto atual e cite as conclusões de forma objetiva.",
+    "Nunca afirme que executou ações em infraestrutura externa quando isso não ocorreu.",
+    "Respeite limites de segurança, não produza conteúdo ilegal ou nocivo.",
+    context.settings ? `Contexto do usuário: ${context.settings}` : "",
+    context.memories ? `Memórias relevantes:\n${context.memories}` : "",
+    context.opsMode ? `Playbook operacional:\n${context.opsPlaybook}` : "",
+    context.webResearch ? context.webResearch : "",
+  ].filter(Boolean).join("\n\n");
 }
 
 async function generateChatReply(messages: { role: string; content: string }[]) {
@@ -126,6 +227,15 @@ async function generateChatReply(messages: { role: string; content: string }[]) 
   }
 
   return groqChat(messages);
+}
+
+function buildMemoryContext(memories: { title: string; summary: string }[]) {
+  return memories.map((memory) => `- ${memory.title}: ${memory.summary}`).join("\n");
+}
+
+function extractOpsResolution(reply: string) {
+  const normalized = reply.replace(/\s+/g, " ").trim();
+  return normalized.slice(0, 380);
 }
 
 function buildMediaUnavailableReply(kind: "audio" | "video") {
@@ -156,12 +266,12 @@ export async function POST(req: NextRequest) {
     if (isVideoRequest(message)) {
       const videoQuota = await canUse(user, "video", monthKey);
       if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
-      if (!process.env.FAL_KEY) throw new ApiError("FAL_KEY ausente", 500);
+      if (!process.env.PIAPI_API_KEY) throw new ApiError("PIAPI_API_KEY ausente", 500);
 
       const { visualPrompt, speechText, displayPrompt } = prepareVideoPrompt(message);
       try {
         const translatedPrompt = await normalizeVisualPrompt(visualPrompt);
-        const video = await falCreateVideo(translatedPrompt, "16:9", 6, speechText);
+        const video = await piapiCreateVideo(translatedPrompt, "16:9", 6, speechText);
         await incrementUsage(user.id, "video", monthKey);
 
         reply = buildMediaMessage({
@@ -176,7 +286,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         const messageText = error instanceof Error ? error.message : "";
-        if (!/402|429/.test(messageText) && !messageText.includes("FAL_KEY ausente") && !isFalCreditError(error) && !isFalForbiddenError(error)) throw error;
+        if (!/402|429/.test(messageText) && !messageText.includes("PIAPI_API_KEY ausente") && !isPiapiCreditError(error) && !isPiapiAuthError(error) && !isPiapiRateLimitError(error)) throw error;
         reply = buildMediaUnavailableReply("video");
       }
 
@@ -221,14 +331,32 @@ export async function POST(req: NextRequest) {
       reply = buildMediaMessage({ kind: "image", prompt, url: imageUrl });
       convId = await ensureConversation(user.id, conversationId, prompt);
     } else {
-      const system = systemPrompt(country);
+      const agentContext = await getUserAgentContext(user.id);
+      const relevantMemories = agentContext.personalization.memoryHistory === false
+        ? []
+        : findRelevantMemories(agentContext.memories, message);
+      const opsMode = isOpsQuery(message);
+      const webResearch = await buildResearchContext(message, agentContext.personalization.webSearch !== false);
+      const conversationContext = await getConversationContext(user.id, conversationId);
+      const system = systemPrompt(country, {
+        settings: buildSettingsContext(agentContext.personalization),
+        memories: buildMemoryContext(relevantMemories),
+        opsMode,
+        opsPlaybook: getOpsPlaybookContext(message),
+        webResearch,
+      });
       reply = await generateChatReply([
         { role: "system", content: system },
+        ...conversationContext,
         { role: "user", content: message },
       ]);
 
       await incrementUsage(user.id, "chat", monthKey);
       convId = await ensureConversation(user.id, conversationId, message);
+
+      if (opsMode && agentContext.personalization.memorySaved !== false) {
+        await saveAgentMemory(user.id, buildOpsMemoryEntry(message, extractOpsResolution(reply))).catch(() => undefined);
+      }
     }
 
     await prisma.message.createMany({
@@ -249,8 +377,8 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : isFalCreditError(err) || isFalForbiddenError(err)
-          ? getFalFriendlyError(err)
+        : isPiapiCreditError(err) || isPiapiAuthError(err) || isPiapiRateLimitError(err)
+          ? getPiapiFriendlyError(err)
         : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

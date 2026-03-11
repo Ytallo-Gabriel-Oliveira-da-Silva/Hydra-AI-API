@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { falCreateVideo, getFalFriendlyError, isFalCreditError, isFalForbiddenError } from "@/lib/providers/fal";
+import { getPiapiFriendlyError, isPiapiAuthError, isPiapiCreditError, isPiapiRateLimitError, piapiCreateVideo } from "@/lib/providers/piapi";
 import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 
 const schema = z.object({
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       ? await groqTranslateToEnglishPrompt(prepared.visualPrompt).catch(() => prepared.visualPrompt)
       : prepared.visualPrompt;
 
-    const result = await falCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6, prepared.speechText);
+    const result = await piapiCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6, prepared.speechText);
     await incrementUsage(user.id, "video", monthKey);
 
     return NextResponse.json({ video: result });
@@ -71,9 +71,9 @@ export async function POST(req: NextRequest) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
     const friendly = status === 402
-      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos da fal.ai."
-      : isFalCreditError(err) || isFalForbiddenError(err)
-        ? getFalFriendlyError(err)
+      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos da PIAPI."
+      : isPiapiCreditError(err) || isPiapiAuthError(err) || isPiapiRateLimitError(err)
+        ? getPiapiFriendlyError(err)
       : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

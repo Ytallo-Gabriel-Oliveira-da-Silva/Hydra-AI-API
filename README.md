@@ -37,12 +37,11 @@ Use `.env.example` como referencia. Em producao, configure essas variaveis no pr
 - `TAVILY_API_KEY`
 - `DEEPGRAM_API_KEY`
 - `DEEPGRAM_TTS_MODEL`
-- `FAL_KEY`
-- `FAL_VIDEO_MODEL`
+- `PIAPI_API_KEY`
 - `JWT_SECRET`
 - `RESET_TOKEN_SECRET`
 
-Valor recomendado para `FAL_VIDEO_MODEL`: `fal-ai/pika/v2.2/text-to-video`
+Vídeo agora usa PIAPI com `sora2-pro-video`, resolução fixa em `720p` e duração limitada a no máximo `10` segundos.
 
 ## Deploy na Vercel
 
