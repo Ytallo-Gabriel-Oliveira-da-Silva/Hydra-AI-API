@@ -1108,11 +1108,11 @@ export default function DashboardPage() {
                             sendMessage();
                           }
                         }}
-                        rows={3}
-                        className="min-h-[96px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none sm:min-h-[84px]"
+                        rows={2}
+                        className="min-h-[56px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none sm:min-h-[64px]"
                         placeholder="Pergunte alguma coisa"
                       />
-                      <div className="mt-3 flex flex-col gap-3 border-t border-white/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="mt-2.5 flex flex-col gap-3 border-t border-white/10 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
                         <div className="flex items-center justify-end gap-2">
                           <button
