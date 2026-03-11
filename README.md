@@ -37,9 +37,8 @@ Use `.env.example` como referencia. Em producao, configure essas variaveis no pr
 - `TAVILY_API_KEY`
 - `DEEPGRAM_API_KEY`
 - `DEEPGRAM_TTS_MODEL`
-- `HUGGINGFACE_API_KEY`
-- `HUGGINGFACE_VIDEO_MODEL`
-- `HUGGINGFACE_VIDEO_PROVIDER`
+- `FAL_KEY`
+- `FAL_VIDEO_MODEL`
 - `JWT_SECRET`
 - `RESET_TOKEN_SECRET`
 

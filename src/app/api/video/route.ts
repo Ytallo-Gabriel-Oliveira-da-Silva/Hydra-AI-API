@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { getHuggingFaceFriendlyError, huggingFaceCreateVideo, isHuggingFaceCreditError } from "@/lib/providers/huggingface";
+import { falCreateVideo, getFalFriendlyError, isFalCreditError } from "@/lib/providers/fal";
 import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 
 const schema = z.object({
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       ? await groqTranslateToEnglishPrompt(prompt).catch(() => prompt)
       : prompt;
 
-    const result = await huggingFaceCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6);
+    const result = await falCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6);
     await incrementUsage(user.id, "video", monthKey);
 
     return NextResponse.json({ video: result });
@@ -36,9 +36,9 @@ export async function POST(req: NextRequest) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
     const friendly = status === 402
-      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos do Hugging Face."
-      : isHuggingFaceCreditError(err)
-        ? getHuggingFaceFriendlyError(err)
+      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos da fal.ai."
+      : isFalCreditError(err)
+        ? getFalFriendlyError(err)
       : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

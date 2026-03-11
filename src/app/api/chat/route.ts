@@ -5,7 +5,7 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { getHuggingFaceFriendlyError, huggingFaceCreateVideo, isHuggingFaceCreditError } from "@/lib/providers/huggingface";
+import { falCreateVideo, getFalFriendlyError, isFalCreditError } from "@/lib/providers/fal";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { generateSpeechAudio } from "@/lib/providers/speech";
 
@@ -123,12 +123,12 @@ export async function POST(req: NextRequest) {
     if (isVideoRequest(message)) {
       const videoQuota = await canUse(user, "video", monthKey);
       if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
-      if (!process.env.HUGGINGFACE_API_KEY) throw new ApiError("HUGGINGFACE_API_KEY ausente", 500);
+      if (!process.env.FAL_KEY) throw new ApiError("FAL_KEY ausente", 500);
 
       const prompt = cleanGenerativePrompt(message, "video");
       try {
         const translatedPrompt = await normalizeVisualPrompt(prompt);
-        const video = await huggingFaceCreateVideo(translatedPrompt, "16:9", 6);
+        const video = await falCreateVideo(translatedPrompt, "16:9", 6);
         await incrementUsage(user.id, "video", monthKey);
 
         reply = buildMediaMessage({
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
         });
       } catch (error) {
         const messageText = error instanceof Error ? error.message : "";
-        if (!/402|429/.test(messageText) && !messageText.includes("HUGGINGFACE_API_KEY ausente") && !isHuggingFaceCreditError(error)) throw error;
+        if (!/402|429/.test(messageText) && !messageText.includes("FAL_KEY ausente") && !isFalCreditError(error)) throw error;
         reply = buildMediaUnavailableReply("video");
       }
 
@@ -216,8 +216,8 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : isHuggingFaceCreditError(err)
-          ? getHuggingFaceFriendlyError(err)
+        : isFalCreditError(err)
+          ? getFalFriendlyError(err)
         : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }
