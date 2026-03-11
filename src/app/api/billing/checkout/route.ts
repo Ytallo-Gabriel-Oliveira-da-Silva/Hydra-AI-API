@@ -12,6 +12,7 @@ import {
   getAsaasCheckoutUrl,
   getAsaasPixQrCode,
   normalizeCpfCnpj,
+  resolveAsaasPixExpirationDate,
 } from "@/lib/asaas";
 
 const db = prisma as any;
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (parsed.paymentMethod === "pix") {
+      const now = new Date();
       const cpfCnpj = normalizeCpfCnpj(parsed.cpfCnpj || "");
       const customer = await createAsaasCustomer({
         name: user.name,
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest) {
         customer: customer.id,
         billingType: "PIX",
         value: Number(amount.toFixed(2)),
-        dueDate: formatDateOnly(new Date()),
+        dueDate: formatDateOnly(now),
         description: `Assinatura ${plan.name} - HYDRA AI`,
         externalReference: transaction.id,
       });
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
           status: String(payment.status || "pending").toLowerCase(),
           paymentLink: payment.invoiceUrl || null,
           pixCode: qrCode.payload || null,
-          expiresAt: qrCode.expirationDate ? new Date(qrCode.expirationDate) : null,
+          expiresAt: resolveAsaasPixExpirationDate(qrCode.expirationDate, now),
           metadata: JSON.stringify({
             externalReference: transaction.id,
             asaasCustomerId: customer.id,

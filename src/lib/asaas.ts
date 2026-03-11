@@ -1,3 +1,5 @@
+import { addMinutes } from "date-fns";
+
 type AsaasErrorItem = {
   description?: string;
 };
@@ -87,6 +89,8 @@ export type AsaasPaymentResponse = {
   externalReference?: string | null;
 };
 
+export const PIX_EXPIRATION_MINUTES = 15;
+
 function getAsaasApiBaseUrl() {
   return process.env.ASAAS_ENVIRONMENT === "production"
     ? "https://api.asaas.com/v3"
@@ -151,7 +155,23 @@ export function normalizeCpfCnpj(value: string) {
 }
 
 export function formatDateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function resolveAsaasPixExpirationDate(expirationDate?: string | null, referenceDate = new Date()) {
+  const fallback = addMinutes(referenceDate, PIX_EXPIRATION_MINUTES);
+  const rawValue = expirationDate?.trim();
+
+  if (!rawValue) return fallback;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) return fallback;
+
+  const parsed = new Date(rawValue);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+
+  return parsed;
 }
 
 export function isAsaasStatusPaid(status?: string | null) {
