@@ -51,6 +51,8 @@ export type PiapiVideoResult = {
 
 type JsonRecord = Record<string, unknown>;
 
+const NON_ERROR_MESSAGES = new Set(["success", "ok", "completed", "processing", "pending", "starting"]);
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -187,6 +189,23 @@ function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : null;
 }
 
+function parseJsonText(text: string) {
+  if (!text.trim()) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isMeaningfulErrorMessage(message: string | null | undefined) {
+  if (!message) return false;
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+  return !NON_ERROR_MESSAGES.has(normalized);
+}
+
 function findFirstString(value: unknown, matcher: (key: string, text: string) => boolean): string | null {
   if (typeof value === "string") {
     return matcher("", value) ? value : null;
@@ -216,6 +235,19 @@ function findFirstString(value: unknown, matcher: (key: string, text: string) =>
 }
 
 function extractTaskId(payload: unknown) {
+  const record = asRecord(payload);
+  const directTaskId = typeof record?.task_id === "string"
+    ? record.task_id
+    : typeof record?.taskId === "string"
+      ? record.taskId
+      : typeof asRecord(record?.data)?.task_id === "string"
+        ? asRecord(record?.data)?.task_id as string
+        : typeof asRecord(record?.data)?.taskId === "string"
+          ? asRecord(record?.data)?.taskId as string
+          : null;
+
+  if (directTaskId?.trim()) return directTaskId.trim();
+
   return findFirstString(payload, (key, text) => {
     if (!text.trim()) return false;
     return key === "task_id" || key === "taskId" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text.trim());
@@ -235,6 +267,25 @@ function extractOutputVideoUrl(payload: unknown) {
     return outputVideo;
   }
 
+  const outputRecord = asRecord(output);
+  const directCandidates = [
+    outputRecord?.url,
+    outputRecord?.file_url,
+    outputRecord?.video_url,
+    asRecord(outputRecord?.video)?.url,
+    asRecord(outputRecord?.result)?.video,
+    asRecord(outputRecord?.result)?.url,
+    asRecord(outputRecord?.result)?.file_url,
+    asRecord(outputRecord?.data)?.video,
+    asRecord(outputRecord?.data)?.url,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (typeof candidate === "string" && /^https?:\/\//i.test(candidate)) {
+      return candidate;
+    }
+  }
+
   return findFirstString(payload, (key, text) => {
     if (!/^https?:\/\//i.test(text)) return false;
     if (key === "video" || key === "url" || key === "file_url" || key === "video_url") return true;
@@ -245,9 +296,10 @@ function extractOutputVideoUrl(payload: unknown) {
 function extractErrorMessage(payload: unknown) {
   const record = asRecord(payload);
   const error = asRecord(record?.error);
-  if (typeof error?.message === "string" && error.message.trim()) return error.message.trim();
-  if (typeof error?.raw_message === "string" && error.raw_message.trim()) return error.raw_message.trim();
-  if (typeof record?.message === "string" && record.message.trim()) return record.message.trim();
+  if (typeof error?.message === "string" && isMeaningfulErrorMessage(error.message)) return error.message.trim();
+  if (typeof error?.raw_message === "string" && isMeaningfulErrorMessage(error.raw_message)) return error.raw_message.trim();
+  if (typeof error?.detail === "string" && isMeaningfulErrorMessage(error.detail)) return error.detail.trim();
+  if (typeof record?.message === "string" && isMeaningfulErrorMessage(record.message)) return record.message.trim();
   return null;
 }
 
@@ -299,7 +351,7 @@ async function createPiapiVideoTask(prompt: string, aspectRatio: string, duratio
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) as unknown : null;
+  const payload = parseJsonText(text);
 
   if (!response.ok) {
     const errorMessage = extractErrorMessage(payload) || text || `PIAPI video erro ${response.status}`;
@@ -321,7 +373,7 @@ async function getPiapiTask(taskId: string) {
   });
 
   const text = await response.text();
-  const payload = text ? JSON.parse(text) as unknown : null;
+  const payload = parseJsonText(text);
 
   if (!response.ok) {
     const errorMessage = extractErrorMessage(payload) || text || `PIAPI task erro ${response.status}`;
@@ -340,6 +392,10 @@ async function waitForPiapiVideo(taskId: string) {
     const videoUrl = extractOutputVideoUrl(payload);
 
     if (videoUrl && (status === "completed" || status === "success" || status === "finished" || status === null)) {
+      return { payload, videoUrl };
+    }
+
+    if (videoUrl) {
       return { payload, videoUrl };
     }
 
