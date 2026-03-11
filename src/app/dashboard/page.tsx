@@ -955,32 +955,57 @@ export default function DashboardPage() {
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col" style={{ minHeight: workspaceHeight }}>
-          <div className="relative flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-slate-300">Modo</p>
-              <p className="text-xl font-semibold text-white">HYDRA AI · Multimodal</p>
+          <div className="relative grid gap-3 xl:grid-cols-[minmax(220px,300px)_1fr] xl:items-start">
+            <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 shadow-xl backdrop-blur-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Modo</p>
+              <p className="mt-1 text-2xl font-semibold text-white">HYDRA AI · Multimodal</p>
             </div>
 
-            {(!micAllowed || !camAllowed) && (
-              <button
-                onClick={requestMediaPermissions}
-                className="rounded-xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 hover:bg-amber-400/15"
-              >
-                Permitir microfone e câmera
-              </button>
-            )}
+            <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                {(!micAllowed || !camAllowed) && (
+                  <button
+                    onClick={requestMediaPermissions}
+                    className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
+                  >
+                    Permitir microfone e câmera
+                  </button>
+                )}
 
-            <button
-              onClick={() => setShowThemes((v) => !v)}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              <Palette className="h-4 w-4" />
-              Tema: {theme.label}
-              <Sparkles className="h-4 w-4 text-amber-300" />
-            </button>
+                <button
+                  onClick={() => setShowThemes((v) => !v)}
+                  className="flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-400/15"
+                >
+                  <Palette className="h-4 w-4" />
+                  Tema: {theme.label}
+                  <Sparkles className="h-4 w-4 text-amber-300" />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                <ToggleChip
+                  icon={Mic}
+                  label={micAllowed ? "Voz" : "Voz (pedir permissão)"}
+                  active={voiceOn}
+                  onToggle={async () => {
+                    if (!voiceOn && !micAllowed) await requestMedia("audio");
+                    setVoiceOn((p) => !p);
+                  }}
+                />
+                <ToggleChip
+                  icon={Camera}
+                  label={camAllowed ? "Câmera" : "Câmera (pedir permissão)"}
+                  active={cameraOn}
+                  onToggle={async () => {
+                    if (!cameraOn && !camAllowed) await requestMedia("video");
+                    setCameraOn((p) => !p);
+                  }}
+                />
+              </div>
+            </div>
 
             {showThemes && (
-              <div className="absolute left-[240px] top-16 z-20 w-64 rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl">
+              <div className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-64 rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl xl:right-4">
                 {themes.map((preset) => (
                   <button
                     key={preset.id}
@@ -999,27 +1024,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
-
-            <div className="ml-auto flex gap-2">
-              <ToggleChip
-                icon={Mic}
-                label={micAllowed ? "Voz" : "Voz (pedir permissão)"}
-                active={voiceOn}
-                onToggle={async () => {
-                  if (!voiceOn && !micAllowed) await requestMedia("audio");
-                  setVoiceOn((p) => !p);
-                }}
-              />
-              <ToggleChip
-                icon={Camera}
-                label={camAllowed ? "Câmera" : "Câmera (pedir permissão)"}
-                active={cameraOn}
-                onToggle={async () => {
-                  if (!cameraOn && !camAllowed) await requestMedia("video");
-                  setCameraOn((p) => !p);
-                }}
-              />
-            </div>
           </div>
 
           {permissionsError && (
@@ -1077,62 +1081,65 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-full bg-black/40 px-4 py-3 text-left text-slate-100">
-                  <Plus className="h-4 w-4" />
-                  <input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                    placeholder="Pergunte alguma coisa"
-                  />
-                  <button
-                    onClick={handleVoiceToText}
-                    disabled={transcribing}
-                    className={clsx(
-                      "rounded-full p-2 text-white transition",
-                      transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
-                    )}
-                    title="Falar e transcrever"
-                  >
-                    {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-                  </button>
-                  <button
-                    disabled={sending || !input.trim()}
-                    onClick={sendMessage}
-                    className={clsx(
-                      "rounded-full p-2 text-white transition",
-                      sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
-                    )}
-                  >
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={handleVoiceConversation}
-                    disabled={voiceReplyLoading}
-                    className={clsx(
-                      "rounded-full p-2 text-white transition",
-                      voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
-                    )}
-                    title="Falar e ouvir a resposta"
-                  >
-                    {voiceReplyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                  </button>
+                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-4 shadow-xl backdrop-blur-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1">
+                      <textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                        rows={2}
+                        className="min-h-[84px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none"
+                        placeholder="Pergunte alguma coisa"
+                      />
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                        <p className="text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleVoiceToText}
+                            disabled={transcribing}
+                            className={clsx(
+                              "rounded-2xl p-3 text-white transition",
+                              transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
+                            )}
+                            title="Falar e transcrever"
+                          >
+                            {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                          </button>
+                          <button
+                            disabled={sending || !input.trim()}
+                            onClick={sendMessage}
+                            className={clsx(
+                              "rounded-2xl p-3 text-white transition",
+                              sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
+                            )}
+                          >
+                            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={handleVoiceConversation}
+                            disabled={voiceReplyLoading}
+                            className={clsx(
+                              "rounded-2xl p-3 text-white transition",
+                              voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
+                            )}
+                            title="Falar e ouvir a resposta"
+                          >
+                            {voiceReplyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                    Voz sintetizada disponível
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                    O chat por voz está ativo com resposta falada e transcrição automática.
-                  </span>
-                </div>
-                <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
               </motion.div>
 
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
