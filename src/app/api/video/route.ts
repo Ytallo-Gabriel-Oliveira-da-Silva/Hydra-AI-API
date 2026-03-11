@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       ? await groqTranslateToEnglishPrompt(prompt).catch(() => prompt)
       : prompt;
 
-    const result = await falCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6);
+    const result = await falCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6, prompt);
     await incrementUsage(user.id, "video", monthKey);
 
     return NextResponse.json({ video: result });

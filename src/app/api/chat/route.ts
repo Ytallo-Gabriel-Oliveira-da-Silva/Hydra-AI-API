@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       const prompt = cleanGenerativePrompt(message, "video");
       try {
         const translatedPrompt = await normalizeVisualPrompt(prompt);
-        const video = await falCreateVideo(translatedPrompt, "16:9", 6);
+        const video = await falCreateVideo(translatedPrompt, "16:9", 6, prompt);
         await incrementUsage(user.id, "video", monthKey);
 
         reply = buildMediaMessage({

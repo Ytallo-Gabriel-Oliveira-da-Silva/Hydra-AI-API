@@ -1,5 +1,15 @@
+import { execFile } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import { nanoid } from "nanoid";
 import { fal } from "@fal-ai/client";
+import { deepgramTextToSpeech } from "@/lib/providers/deepgram";
+
+const ffmpegPath = require("ffmpeg-static") as string | null;
+const ffprobePath = (require("ffprobe-static") as { path?: string }).path || null;
+const execFileAsync = promisify(execFile);
 
 const FAL_CREDIT_PATTERNS = [
   /insufficient/i,
@@ -23,6 +33,113 @@ type FalVideoResponse = {
     url?: string;
   };
 };
+
+function shouldAttemptSpeechMux(prompt: string) {
+  return /\b(falando|fala|dizendo|discurso|discursando|narrando|narração|narracao|speaking|talking|speech|voiceover|voice over)\b/i.test(prompt);
+}
+
+function extractSpeechText(prompt: string) {
+  const quoted = prompt.match(/["“”'']([^"“”'']+)["“”'']/)?.[1]?.trim();
+  if (quoted) return quoted;
+  return prompt.trim();
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Deepgram retornou áudio em formato inválido.");
+  return {
+    mime: match[1],
+    buffer: Buffer.from(match[2], "base64"),
+  };
+}
+
+function extensionForMime(mime: string) {
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+  if (mime.includes("aac")) return "aac";
+  return "bin";
+}
+
+async function downloadToBuffer(sourceUrl: string) {
+  const response = await fetch(sourceUrl);
+  if (!response.ok) {
+    throw new Error(`Fal.ai retornou uma URL de vídeo inválida: ${response.status}`);
+  }
+
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function videoHasAudio(videoPath: string) {
+  if (!ffprobePath) return false;
+
+  try {
+    const { stdout } = await execFileAsync(ffprobePath, [
+      "-v",
+      "error",
+      "-select_streams",
+      "a",
+      "-show_entries",
+      "stream=codec_type",
+      "-of",
+      "csv=p=0",
+      videoPath,
+    ]);
+
+    return stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function muxNarrationIntoVideo(videoUrl: string, narrationText: string) {
+  if (!ffmpegPath || !ffprobePath) return videoUrl;
+
+  const workDir = await mkdtemp(path.join(os.tmpdir(), "hydra-fal-"));
+
+  try {
+    const videoBuffer = await downloadToBuffer(videoUrl);
+    const videoInputPath = path.join(workDir, "input-video.mp4");
+    await writeFile(videoInputPath, videoBuffer);
+
+    if (await videoHasAudio(videoInputPath)) {
+      return videoUrl;
+    }
+
+    const generatedSpeech = await deepgramTextToSpeech(narrationText);
+    const parsedAudio = parseDataUrl(generatedSpeech.audioUrl);
+    const audioInputPath = path.join(workDir, `input-audio.${extensionForMime(parsedAudio.mime)}`);
+    await writeFile(audioInputPath, parsedAudio.buffer);
+
+    const publicDir = path.join(process.cwd(), "public", "generated", "videos");
+    await mkdir(publicDir, { recursive: true });
+    const outputFileName = `hydra-video-${nanoid(12)}.mp4`;
+    const outputPath = path.join(publicDir, outputFileName);
+
+    await execFileAsync(ffmpegPath, [
+      "-y",
+      "-i",
+      videoInputPath,
+      "-i",
+      audioInputPath,
+      "-map",
+      "0:v:0",
+      "-map",
+      "1:a:0",
+      "-c:v",
+      "copy",
+      "-c:a",
+      "aac",
+      "-shortest",
+      outputPath,
+    ]);
+
+    return `/generated/videos/${outputFileName}`;
+  } catch {
+    return videoUrl;
+  } finally {
+    await rm(workDir, { recursive: true, force: true });
+  }
+}
 
 function getFalKey() {
   const key = process.env.FAL_KEY?.trim();
@@ -74,7 +191,7 @@ export function getFalFriendlyError(error: unknown) {
   return message;
 }
 
-export async function falCreateVideo(prompt: string, aspectRatio = "16:9", duration = 6) {
+export async function falCreateVideo(prompt: string, aspectRatio = "16:9", duration = 6, speechText?: string) {
   configureFalClient();
 
   const model = getFalVideoModel();
@@ -99,10 +216,15 @@ export async function falCreateVideo(prompt: string, aspectRatio = "16:9", durat
     throw new Error("Fal.ai não retornou a URL do vídeo gerado.");
   }
 
+  const narrationText = speechText?.trim() || extractSpeechText(prompt);
+  const finalVideoUrl = shouldAttemptSpeechMux(prompt) && process.env.DEEPGRAM_API_KEY
+    ? await muxNarrationIntoVideo(remoteVideoUrl, narrationText)
+    : remoteVideoUrl;
+
   return {
     provider: "fal" as const,
     model,
-    url: remoteVideoUrl,
+    url: finalVideoUrl,
     ratio,
     duration: normalizedDuration.requested,
     taskId: result.requestId || nanoid(16),
