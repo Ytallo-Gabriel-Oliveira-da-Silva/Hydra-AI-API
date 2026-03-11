@@ -10,9 +10,16 @@ type AsaasWebhookPayment = {
   externalReference?: string | null;
 };
 
+type AsaasWebhookCheckout = {
+  id?: string;
+  status?: string;
+  link?: string | null;
+};
+
 type AsaasWebhookBody = {
   event?: string;
   payment?: AsaasWebhookPayment;
+  checkout?: AsaasWebhookCheckout;
 };
 
 function isAuthorized(req: NextRequest) {
@@ -77,6 +84,25 @@ async function findTransaction(reference: string, asaasPaymentId?: string) {
   });
 }
 
+async function findTransactionByCheckoutId(checkoutId: string) {
+  const transactions = await db.paymentTransaction.findMany({
+    where: { metadata: { not: null } },
+    include: { plan: true, user: true },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+
+  return transactions.find((transaction: { metadata?: string | null }) => {
+    if (!transaction.metadata) return false;
+    try {
+      const metadata = JSON.parse(transaction.metadata) as { asaasCheckoutId?: string };
+      return metadata.asaasCheckoutId === checkoutId;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!isAuthorized(req)) {
@@ -86,6 +112,81 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as AsaasWebhookBody;
     const event = body.event;
     const payment = body.payment;
+    const checkout = body.checkout;
+
+    if ((event || "").toUpperCase().startsWith("CHECKOUT_")) {
+      const checkoutId = checkout?.id?.trim();
+      if (!checkoutId) {
+        return NextResponse.json({ ok: true, ignored: true, reason: "checkout.id ausente" });
+      }
+
+      const transaction = await findTransactionByCheckoutId(checkoutId);
+      if (!transaction) {
+        return NextResponse.json({ ok: true, ignored: true, reason: "checkout não encontrado" });
+      }
+
+      const metadata = transaction.metadata
+        ? (() => {
+            try {
+              return JSON.parse(transaction.metadata) as Record<string, unknown>;
+            } catch {
+              return {};
+            }
+          })()
+        : {};
+
+      if ((event || "").toUpperCase() === "CHECKOUT_PAID") {
+        if (transaction.status !== "paid") {
+          const renewalAt = getNextAccessEndForPlan(
+            transaction.plan.slug,
+            transaction.user.currentPeriodEndsAt,
+          );
+
+          await prisma.$transaction([
+            db.paymentTransaction.update({
+              where: { id: transaction.id },
+              data: {
+                status: "paid",
+                metadata: JSON.stringify({
+                  ...metadata,
+                  asaasCheckoutId: checkoutId,
+                  asaasCheckoutStatus: checkout?.status || "PAID",
+                  asaasCheckoutUrl: checkout?.link || metadata.asaasCheckoutUrl || null,
+                  asaasEvent: event || null,
+                }),
+              },
+            }),
+            prisma.user.update({
+              where: { id: transaction.userId },
+              data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt } as any,
+            }),
+          ]);
+        }
+
+        return NextResponse.json({ ok: true, status: "paid" });
+      }
+
+      if ((event || "").toUpperCase() === "CHECKOUT_CANCELED" || (event || "").toUpperCase() === "CHECKOUT_EXPIRED") {
+        await db.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: (event || "").toUpperCase() === "CHECKOUT_EXPIRED" ? "expired" : "canceled",
+            metadata: JSON.stringify({
+              ...metadata,
+              asaasCheckoutId: checkoutId,
+              asaasCheckoutStatus: checkout?.status || null,
+              asaasCheckoutUrl: checkout?.link || metadata.asaasCheckoutUrl || null,
+              asaasEvent: event || null,
+            }),
+          },
+        });
+
+        return NextResponse.json({ ok: true, status: "updated" });
+      }
+
+      return NextResponse.json({ ok: true, ignored: true, reason: "evento de checkout sem ação" });
+    }
+
     const reference = payment?.externalReference?.trim();
 
     if (!reference) {

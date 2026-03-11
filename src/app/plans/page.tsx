@@ -66,7 +66,7 @@ export default function PlansPage() {
             <>
               <div className="mt-8 grid gap-4 lg:grid-cols-3">
                 <TrustCard title="Ativação automática" text="Ao concluir a contratação, o plano da conta é atualizado imediatamente com renovação alinhada ao ciclo escolhido." />
-                <TrustCard title="Cobrança empresarial" text="Fluxo preparado para Pix, cartão de crédito com parcelas e débito em uma jornada clara e consistente." />
+                <TrustCard title="Cobrança empresarial" text="Fluxo preparado para Pix real e cartão recorrente com confirmação da Asaas antes de qualquer ativação do plano." />
                 <TrustCard title="Escalonamento simples" text="Comece no Free e avance para Plus, Pro ou Anual conforme o volume de uso e a maturidade da operação." />
               </div>
 

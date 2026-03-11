@@ -2,8 +2,8 @@
 
 import { SiteFooter } from "@/components/site-footer";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { CheckCircle2, Clock3, Copy, CreditCard, Landmark, QrCode, ShieldCheck, Sparkles } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, QrCode, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type Plan = {
@@ -26,33 +26,31 @@ type Plan = {
 type Transaction = {
   id: string;
   status: string;
-  paymentMethod: "pix" | "credit" | "debit";
+  paymentMethod: "pix" | "credit";
   amount: number;
   installments?: number | null;
   paymentLink?: string | null;
   pixCode?: string | null;
   expiresAt?: string | null;
+  pixQrCodeImage?: string | null;
+  checkoutUrl?: string | null;
+  asaasStatus?: string | null;
 };
 
 export default function PlanDetailPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug;
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit" | "debit">("pix");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "credit">("pix");
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    cardholderName: "",
-    cardNumber: "",
-    expiry: "",
-    cvv: "",
-    installments: "1",
-  });
+  const [cpfCnpj, setCpfCnpj] = useState("");
 
   useEffect(() => {
     async function loadPlan() {
@@ -83,6 +81,33 @@ export default function PlanDetailPage() {
     return () => clearInterval(interval);
   }, [transaction?.expiresAt]);
 
+  useEffect(() => {
+    const result = searchParams.get("result");
+    const transactionId = searchParams.get("transaction");
+
+    if (result === "canceled") {
+      setError("O checkout foi cancelado. Gere uma nova cobrança para continuar.");
+      return;
+    }
+
+    if (result === "expired") {
+      setError("O checkout expirou. Gere uma nova cobrança para continuar.");
+      return;
+    }
+
+    if (transactionId) {
+      void syncTransactionStatus(transactionId, result === "success");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!transaction?.id || transaction.status === "paid") return;
+    const interval = setInterval(() => {
+      void syncTransactionStatus(transaction.id, false);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [transaction?.id, transaction?.status]);
+
   async function createCheckout() {
     if (!plan) return;
     setSubmitting(true);
@@ -92,11 +117,7 @@ export default function PlanDetailPage() {
       const payload = {
         planSlug: plan.slug,
         paymentMethod,
-        installments: paymentMethod === "credit" ? Number(form.installments) : undefined,
-        cardholderName: paymentMethod === "pix" ? undefined : form.cardholderName,
-        cardNumber: paymentMethod === "pix" ? undefined : form.cardNumber,
-        expiry: paymentMethod === "pix" ? undefined : form.expiry,
-        cvv: paymentMethod === "pix" ? undefined : form.cvv,
+        cpfCnpj: paymentMethod === "pix" ? cpfCnpj : undefined,
       };
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
@@ -106,8 +127,8 @@ export default function PlanDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
       setTransaction(data.transaction);
-      if (paymentMethod !== "pix") {
-        await confirmPayment(data.transaction.id);
+      if (paymentMethod === "credit" && data.transaction.checkoutUrl) {
+        window.location.assign(data.transaction.checkoutUrl);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao iniciar pagamento");
@@ -116,25 +137,40 @@ export default function PlanDetailPage() {
     }
   }
 
-  async function confirmPayment(transactionId?: string) {
+  async function syncTransactionStatus(transactionId?: string, showPendingMessage?: boolean) {
     const id = transactionId || transaction?.id;
     if (!id) return;
-    setConfirming(true);
+    setCheckingStatus(true);
     setError(null);
     try {
-      const res = await fetch("/api/billing/checkout/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionId: id }),
-      });
+      const res = await fetch(`/api/billing/checkout/status?transactionId=${encodeURIComponent(id)}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao confirmar pagamento");
-      setSuccess(`Plano ${data.planName} ativado com sucesso.`);
-      setTimeout(() => router.push("/dashboard"), 1200);
+      if (!res.ok) throw new Error(data.error || "Erro ao consultar pagamento");
+      setTransaction(data.transaction);
+
+      if (data.transaction.status === "paid") {
+        setSuccess(`Plano ${plan?.name || "selecionado"} ativado com sucesso.`);
+        setTimeout(() => router.push("/dashboard"), 1200);
+        return;
+      }
+
+      if (data.transaction.status === "expired") {
+        setError("A cobrança expirou. Gere um novo pagamento para continuar.");
+        return;
+      }
+
+      if (["overdue", "refunded", "deleted", "failed", "canceled"].includes(data.transaction.status)) {
+        setError("A cobrança não foi confirmada pela Asaas. Gere um novo pagamento para continuar.");
+        return;
+      }
+
+      if (showPendingMessage) {
+        setSuccess("Pagamento recebido. Aguardando a confirmação final da Asaas.");
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao confirmar pagamento");
+      setError(err instanceof Error ? err.message : "Erro ao consultar pagamento");
     } finally {
-      setConfirming(false);
+      setCheckingStatus(false);
     }
   }
 
@@ -187,9 +223,8 @@ export default function PlanDetailPage() {
               <p className="mt-2">Jornada desenhada para onboarding rápido, confirmação clara de pagamento e atualização automática do plano da conta.</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
-                  "Pix imediato",
-                  "Crédito parcelado",
-                  "Débito à vista",
+                          "Pix real via Asaas",
+                          "Cartão recorrente",
                   "Ativação automática",
                 ].map((item) => (
                   <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-100">{item}</span>
@@ -203,11 +238,10 @@ export default function PlanDetailPage() {
               {[
                 { id: "pix", label: "Pix", icon: QrCode },
                 { id: "credit", label: "Crédito", icon: CreditCard },
-                { id: "debit", label: "Débito", icon: Landmark },
               ].map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => setPaymentMethod(item.id as "pix" | "credit" | "debit")}
+                  onClick={() => setPaymentMethod(item.id as "pix" | "credit")}
                   className={`rounded-2xl border px-4 py-3 text-left ${paymentMethod === item.id ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}
                 >
                   <item.icon className="h-4 w-4" />
@@ -220,32 +254,46 @@ export default function PlanDetailPage() {
               {paymentMethod === "pix" && (
                 <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5">
                   <p className="text-sm font-semibold text-white">Pagamento instantâneo via Pix</p>
-                  <p className="mt-1 text-xs text-slate-400">Gere o QR Code e confirme o pagamento para ativar o plano.</p>
+                  <p className="mt-1 text-xs text-slate-400">Gere uma cobrança real da Asaas para receber QR Code dinâmico e Pix Copia e Cola válidos.</p>
+                  <input
+                    value={cpfCnpj}
+                    onChange={(e) => setCpfCnpj(e.target.value)}
+                    placeholder="CPF ou CNPJ do pagador"
+                    className="mt-4 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none"
+                  />
                   <button onClick={createCheckout} disabled={submitting} className="mt-4 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-400 disabled:opacity-60">
                     {submitting ? "Gerando Pix..." : "Gerar QR Code Pix"}
                   </button>
 
                   {transaction?.paymentMethod === "pix" && (
                     <div className="mt-5 rounded-[24px] border border-white/10 bg-black/30 p-5">
-                      <div className="mx-auto grid h-52 w-52 grid-cols-8 gap-1 rounded-2xl bg-white p-3">
-                        {Array.from({ length: 64 }).map((_, index) => (
-                          <div key={index} className={index % 3 === 0 || index % 5 === 0 ? "bg-black" : "bg-white"} />
-                        ))}
-                      </div>
+                      {transaction.pixQrCodeImage ? (
+                        <img src={transaction.pixQrCodeImage} alt="QR Code Pix" className="mx-auto h-52 w-52 rounded-2xl bg-white p-3" />
+                      ) : (
+                        <div className="mx-auto flex h-52 w-52 items-center justify-center rounded-2xl border border-white/10 bg-black/20 text-xs text-slate-400">
+                          QR Code indisponível no momento
+                        </div>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-200">
                         {[
-                          "Expiração em 15 minutos",
-                          "Confirmação instantânea",
-                          "Ativação automática do plano",
+                          "Cobrança real na Asaas",
+                          "Confirmação por webhook",
+                          "Plano só ativa após pagamento",
                         ].map((item) => (
                           <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1">{item}</span>
                         ))}
                       </div>
                       <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-slate-300">
-                        <p className="font-semibold text-white">Link de pagamento</p>
-                        <p className="mt-1 break-all">{transaction.paymentLink}</p>
-                        <p className="mt-3 font-semibold text-white">Código Pix</p>
+                        <p className="font-semibold text-white">Código Pix</p>
                         <p className="mt-1 break-all">{transaction.pixCode}</p>
+                        {transaction.paymentLink && (
+                          <>
+                            <p className="mt-3 font-semibold text-white">Cobrança na Asaas</p>
+                            <a href={transaction.paymentLink} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-2 break-all text-cyan-200 hover:text-cyan-100">
+                              Abrir cobrança <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </>
+                        )}
                       </div>
                       <div className="mt-4">
                         <div className="flex items-center justify-between text-xs text-slate-300">
@@ -260,8 +308,8 @@ export default function PlanDetailPage() {
                         <button onClick={() => transaction.pixCode && navigator.clipboard?.writeText(transaction.pixCode)} className="rounded-2xl border border-white/15 px-4 py-3 text-sm text-white hover:bg-white/10">
                           <Copy className="mr-2 inline h-4 w-4" /> Copiar código
                         </button>
-                        <button onClick={() => confirmPayment()} disabled={confirming || pixSecondsRemaining === 0} className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-400 disabled:opacity-60">
-                          {confirming ? "Confirmando..." : "Confirmar pagamento"}
+                        <button onClick={() => syncTransactionStatus()} disabled={checkingStatus || pixSecondsRemaining === 0} className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-400 disabled:opacity-60">
+                          {checkingStatus ? "Verificando..." : "Verificar status"}
                         </button>
                       </div>
                     </div>
@@ -270,27 +318,32 @@ export default function PlanDetailPage() {
               )}
 
               {paymentMethod === "credit" && (
-                <CardForm
-                  title="Cartão de crédito"
-                  subtitle="Escolha parcelas, valide os dados e conclua a contratação com segurança."
-                  form={form}
-                  setForm={setForm}
-                  showInstallments
-                  submitting={submitting}
-                  onSubmit={createCheckout}
-                />
-              )}
+                <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5">
+                  <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,#0f172a,#1e293b)] p-5 text-white shadow-xl">
+                    <p className="text-sm uppercase tracking-[0.3em] text-slate-300">HYDRA PAY</p>
+                    <p className="mt-8 text-xl font-semibold">Checkout seguro da Asaas</p>
+                    <div className="mt-6 text-sm text-slate-300">
+                      O cartão é informado no ambiente seguro da Asaas. O plano só é ativado depois que a Asaas confirmar a cobrança real.
+                    </div>
+                  </div>
 
-              {paymentMethod === "debit" && (
-                <CardForm
-                  title="Cartão de débito"
-                  subtitle="Pagamento à vista com confirmação imediata e liberação rápida do plano."
-                  form={form}
-                  setForm={setForm}
-                  showInstallments={false}
-                  submitting={submitting}
-                  onSubmit={createCheckout}
-                />
+                  <p className="mt-4 text-sm font-semibold text-white">Cartão com renovação automática</p>
+                  <p className="mt-1 text-xs text-slate-400">Esse fluxo cria uma assinatura recorrente real. Não existe mais ativação local por clique.</p>
+
+                  <button onClick={createCheckout} disabled={submitting} className="mt-5 rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-400 disabled:opacity-60">
+                    {submitting ? "Preparando checkout..." : "Ir para checkout seguro"}
+                  </button>
+                  <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><ShieldCheck className="h-4 w-4" /> Cobrança e confirmação feitas pela Asaas, com retorno ao HYDRA AI após o pagamento.</p>
+
+                  {transaction?.paymentMethod === "credit" && transaction.checkoutUrl && (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+                      <p className="font-semibold text-white">Checkout gerado</p>
+                      <a href={transaction.checkoutUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-cyan-200 hover:text-cyan-100">
+                        Abrir checkout da Asaas <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -311,7 +364,7 @@ export default function PlanDetailPage() {
                   <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 font-semibold">{item}</span>
                 ))}
               </div>
-              <p className="mt-4 text-xs text-slate-400">Ambiente de contratação com atualização automática do plano e sincronização imediata na conta.</p>
+              <p className="mt-4 text-xs text-slate-400">Ambiente de contratação sincronizado com a Asaas. O plano só muda depois da confirmação real do pagamento.</p>
             </div>
           </section>
         </div>
@@ -327,67 +380,6 @@ function Feature({ label }: { label: string }) {
     <div className="flex items-center gap-2">
       <CheckCircle2 className="h-4 w-4 text-emerald-300" />
       <span>{label}</span>
-    </div>
-  );
-}
-
-function CardForm({
-  title,
-  subtitle,
-  form,
-  setForm,
-  showInstallments,
-  submitting,
-  onSubmit,
-}: {
-  title: string;
-  subtitle: string;
-  form: { cardholderName: string; cardNumber: string; expiry: string; cvv: string; installments: string };
-  setForm: React.Dispatch<React.SetStateAction<{ cardholderName: string; cardNumber: string; expiry: string; cvv: string; installments: string }>>;
-  showInstallments: boolean;
-  submitting: boolean;
-  onSubmit: () => void;
-}) {
-  return (
-    <div className="rounded-[28px] border border-white/10 bg-slate-950/80 p-5">
-      <div className="rounded-[24px] border border-white/10 bg-[linear-gradient(135deg,#0f172a,#1e293b)] p-5 text-white shadow-xl">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate-300">HYDRA PAY</p>
-        <p className="mt-8 text-xl font-semibold">{form.cardNumber || "0000 0000 0000 0000"}</p>
-        <div className="mt-6 flex items-end justify-between text-sm">
-          <div>
-            <p className="text-[11px] text-slate-400">Portador</p>
-            <p>{form.cardholderName || "NOME DO CLIENTE"}</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-slate-400">Validade</p>
-            <p>{form.expiry || "MM/AA"}</p>
-          </div>
-        </div>
-      </div>
-
-      <p className="mt-4 text-sm font-semibold text-white">{title}</p>
-      <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <input value={form.cardholderName} onChange={(e) => setForm((prev) => ({ ...prev, cardholderName: e.target.value }))} placeholder="Nome impresso no cartão" className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none" />
-        <input value={form.cardNumber} onChange={(e) => setForm((prev) => ({ ...prev, cardNumber: e.target.value }))} placeholder="Número do cartão" className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none" />
-        <input value={form.expiry} onChange={(e) => setForm((prev) => ({ ...prev, expiry: e.target.value }))} placeholder="MM/AA" className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none" />
-        <input value={form.cvv} onChange={(e) => setForm((prev) => ({ ...prev, cvv: e.target.value }))} placeholder="CVV" className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none" />
-        {showInstallments && (
-          <select value={form.installments} onChange={(e) => setForm((prev) => ({ ...prev, installments: e.target.value }))} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white focus:outline-none">
-            {Array.from({ length: 12 }).map((_, index) => (
-              <option key={index + 1} value={String(index + 1)} className="bg-slate-900">
-                {index + 1}x
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-
-      <button onClick={onSubmit} disabled={submitting} className="mt-5 rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:bg-cyan-400 disabled:opacity-60">
-        {submitting ? "Processando..." : "Pagar e ativar plano"}
-      </button>
-      <p className="mt-3 flex items-center gap-2 text-xs text-slate-400"><ShieldCheck className="h-4 w-4" /> Transação simulada pronta para futura integração com gateway.</p>
     </div>
   );
 }

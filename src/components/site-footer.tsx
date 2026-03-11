@@ -55,7 +55,7 @@ export function SiteFooter({ tone = "default" }: SiteFooterProps) {
             </div>
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-amber-300" />
-              <span>Pix, crédito e débito em uma jornada empresarial unificada.</span>
+              <span>Pix real e cartão com confirmação pela Asaas antes da ativação do plano.</span>
             </div>
           </div>
         </div>

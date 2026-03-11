@@ -1,24 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { addMinutes } from "date-fns";
+import { addYears } from "date-fns";
 import { requireUser, ApiError } from "@/lib/api-guard";
 import { prisma } from "@/lib/db";
 import { getPlanAmount } from "@/lib/plans";
+import {
+  createAsaasCheckout,
+  createAsaasCustomer,
+  createAsaasPixPayment,
+  formatDateOnly,
+  getAsaasCheckoutUrl,
+  getAsaasPixQrCode,
+  normalizeCpfCnpj,
+} from "@/lib/asaas";
 
 const db = prisma as any;
 
 const schema = z.object({
   planSlug: z.string().min(2),
-  paymentMethod: z.enum(["pix", "credit", "debit"]),
-  installments: z.number().int().min(1).max(12).optional(),
-  cardholderName: z.string().trim().min(2).optional(),
-  cardNumber: z.string().trim().min(12).max(19).optional(),
-  expiry: z.string().trim().min(4).optional(),
-  cvv: z.string().trim().min(3).max(4).optional(),
+  paymentMethod: z.enum(["pix", "credit"]),
+  cpfCnpj: z.string().trim().optional(),
+}).superRefine((value, ctx) => {
+  if (value.paymentMethod === "pix") {
+    const digits = normalizeCpfCnpj(value.cpfCnpj || "");
+    if (digits.length !== 11 && digits.length !== 14) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["cpfCnpj"],
+        message: "Informe um CPF ou CNPJ válido para gerar o Pix.",
+      });
+    }
+  }
 });
 
-function buildPixCode(planSlug: string, userId: string) {
-  return `00020126580014BR.GOV.BCB.PIX0136hydra-${planSlug}-${userId}5204000053039865406100.005802BR5920HYDRA AI MOCK6009SAO PAULO62070503***6304ABCD`;
+function buildCallbackUrl(pathname: string, transactionId: string, result: "success" | "canceled" | "expired") {
+  const baseUrl = process.env.APP_URL?.trim();
+  if (!baseUrl) {
+    throw new ApiError("APP_URL não configurada para redirecionamento do checkout.", 500);
+  }
+
+  const url = new URL(pathname, baseUrl);
+  url.searchParams.set("transaction", transactionId);
+  url.searchParams.set("result", result);
+  return url.toString();
+}
+
+function getSubscriptionCycle(planSlug: string) {
+  return planSlug === "annual" ? "YEARLY" : "MONTHLY";
 }
 
 export async function POST(req: NextRequest) {
@@ -31,9 +59,6 @@ export async function POST(req: NextRequest) {
     if (plan.slug === "free") throw new ApiError("Plano Free não requer pagamento", 400);
 
     const amount = getPlanAmount(plan.monthlyPrice, plan.yearlyPrice, plan.slug);
-    const expiresAt = parsed.paymentMethod === "pix" ? addMinutes(new Date(), 15) : null;
-    const pixCode = parsed.paymentMethod === "pix" ? buildPixCode(plan.slug, user.id) : null;
-    const paymentLink = parsed.paymentMethod === "pix" ? `https://pay.hydra.local/checkout/${plan.slug}/${user.id}` : null;
 
     const transaction = await db.paymentTransaction.create({
       data: {
@@ -41,28 +66,120 @@ export async function POST(req: NextRequest) {
         planId: plan.id,
         paymentMethod: parsed.paymentMethod,
         amount,
-        installments: parsed.paymentMethod === "credit" ? parsed.installments || 1 : null,
-        status: parsed.paymentMethod === "pix" ? "pending" : "authorized",
-        paymentLink,
-        pixCode,
-        expiresAt,
+        installments: null,
+        status: "pending",
+        paymentLink: null,
+        pixCode: null,
+        expiresAt: null,
+        metadata: JSON.stringify({ externalReference: null }),
+      },
+    });
+
+    if (parsed.paymentMethod === "pix") {
+      const cpfCnpj = normalizeCpfCnpj(parsed.cpfCnpj || "");
+      const customer = await createAsaasCustomer({
+        name: user.name,
+        email: user.email,
+        cpfCnpj,
+        externalReference: user.id,
+        notificationDisabled: true,
+      });
+
+      const payment = await createAsaasPixPayment({
+        customer: customer.id,
+        billingType: "PIX",
+        value: Number((amount / 100).toFixed(2)),
+        dueDate: formatDateOnly(new Date()),
+        description: `Assinatura ${plan.name} - HYDRA AI`,
+        externalReference: transaction.id,
+      });
+
+      const qrCode = await getAsaasPixQrCode(payment.id);
+      const pixQrCodeImage = qrCode.encodedImage
+        ? `data:image/png;base64,${qrCode.encodedImage}`
+        : null;
+
+      const updatedTransaction = await db.paymentTransaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: String(payment.status || "pending").toLowerCase(),
+          paymentLink: payment.invoiceUrl || null,
+          pixCode: qrCode.payload || null,
+          expiresAt: qrCode.expirationDate ? new Date(qrCode.expirationDate) : null,
+          metadata: JSON.stringify({
+            externalReference: transaction.id,
+            asaasCustomerId: customer.id,
+            asaasPaymentId: payment.id,
+            asaasStatus: payment.status || null,
+            pixQrCodeImage,
+          }),
+        },
+      });
+
+      return NextResponse.json({
+        transaction: {
+          id: updatedTransaction.id,
+          status: updatedTransaction.status,
+          paymentMethod: updatedTransaction.paymentMethod,
+          amount: updatedTransaction.amount,
+          paymentLink: updatedTransaction.paymentLink,
+          pixCode: updatedTransaction.pixCode,
+          expiresAt: updatedTransaction.expiresAt,
+          pixQrCodeImage,
+          asaasStatus: payment.status || null,
+        },
+      });
+    }
+
+    const checkout = await createAsaasCheckout({
+      billingTypes: ["CREDIT_CARD"],
+      chargeTypes: ["RECURRENT"],
+      minutesToExpire: 60,
+      externalReference: transaction.id,
+      callback: {
+        successUrl: buildCallbackUrl(`/plans/${plan.slug}`, transaction.id, "success"),
+        cancelUrl: buildCallbackUrl(`/plans/${plan.slug}`, transaction.id, "canceled"),
+        expiredUrl: buildCallbackUrl(`/plans/${plan.slug}`, transaction.id, "expired"),
+      },
+      items: [
+        {
+          name: plan.name,
+          description: `Assinatura ${plan.name} - HYDRA AI`,
+          quantity: 1,
+          value: Number((amount / 100).toFixed(2)),
+        },
+      ],
+      subscription: {
+        cycle: getSubscriptionCycle(plan.slug),
+        nextDueDate: formatDateOnly(new Date()),
+        endDate: formatDateOnly(addYears(new Date(), 10)),
+      },
+    });
+
+    const checkoutUrl = getAsaasCheckoutUrl(checkout.id, checkout.link);
+    const updatedTransaction = await db.paymentTransaction.update({
+      where: { id: transaction.id },
+      data: {
+        paymentLink: checkoutUrl,
         metadata: JSON.stringify({
-          cardholderName: parsed.cardholderName || null,
-          last4: parsed.cardNumber ? parsed.cardNumber.slice(-4) : null,
+          externalReference: transaction.id,
+          asaasCheckoutId: checkout.id,
+          asaasCheckoutUrl: checkoutUrl,
         }),
       },
     });
 
     return NextResponse.json({
       transaction: {
-        id: transaction.id,
-        status: transaction.status,
-        paymentMethod: transaction.paymentMethod,
-        amount: transaction.amount,
-        installments: transaction.installments,
-        paymentLink: transaction.paymentLink,
-        pixCode: transaction.pixCode,
-        expiresAt: transaction.expiresAt,
+        id: updatedTransaction.id,
+        status: updatedTransaction.status,
+        paymentMethod: updatedTransaction.paymentMethod,
+        amount: updatedTransaction.amount,
+        installments: updatedTransaction.installments,
+        paymentLink: updatedTransaction.paymentLink,
+        pixCode: updatedTransaction.pixCode,
+        expiresAt: updatedTransaction.expiresAt,
+        checkoutUrl,
       },
     });
   } catch (error: unknown) {
