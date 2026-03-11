@@ -955,52 +955,64 @@ export default function DashboardPage() {
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col" style={{ minHeight: workspaceHeight }}>
-          <div className="relative grid gap-3 xl:grid-cols-[minmax(220px,300px)_1fr] xl:items-start">
-            <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 shadow-xl backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Modo</p>
-              <p className="mt-1 text-2xl font-semibold text-white">HYDRA AI · Multimodal</p>
+          <div className="relative grid gap-4 xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)] xl:items-stretch">
+            <div className="flex min-h-[168px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 px-6 py-5 shadow-xl backdrop-blur-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-300">Modo</p>
+              <div className="space-y-2">
+                <p className="text-[clamp(2rem,3vw,3rem)] font-semibold leading-none text-white">HYDRA AI</p>
+                <p className="text-lg font-medium text-slate-200">Multimodal</p>
+              </div>
+              <p className="text-sm text-slate-400">Chat, voz, câmera e mídia em um único workspace.</p>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm">
-              <div className="flex flex-wrap items-center gap-3">
-                {(!micAllowed || !camAllowed) && (
+            <div className="flex min-h-[168px] flex-col justify-between rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm">
+              <div className="grid gap-3 md:grid-cols-2">
+                {(!micAllowed || !camAllowed) ? (
                   <button
                     onClick={requestMediaPermissions}
-                    className="rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
+                    className="flex min-h-[72px] items-center justify-center rounded-2xl border border-amber-300/40 bg-amber-400/10 px-4 py-3 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15"
                   >
                     Permitir microfone e câmera
                   </button>
+                ) : (
+                  <div className="flex min-h-[72px] items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-100">
+                    Permissões de mídia liberadas
+                  </div>
                 )}
 
                 <button
                   onClick={() => setShowThemes((v) => !v)}
-                  className="flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-400/15"
+                  className="flex min-h-[72px] items-center justify-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-cyan-400/15"
                 >
                   <Palette className="h-4 w-4" />
-                  Tema: {theme.label}
+                  <span>Tema: {theme.label}</span>
                   <Sparkles className="h-4 w-4 text-amber-300" />
                 </button>
-              </div>
 
-              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                <ToggleChip
-                  icon={Mic}
-                  label={micAllowed ? "Voz" : "Voz (pedir permissão)"}
-                  active={voiceOn}
-                  onToggle={async () => {
-                    if (!voiceOn && !micAllowed) await requestMedia("audio");
-                    setVoiceOn((p) => !p);
-                  }}
-                />
-                <ToggleChip
-                  icon={Camera}
-                  label={camAllowed ? "Câmera" : "Câmera (pedir permissão)"}
-                  active={cameraOn}
-                  onToggle={async () => {
-                    if (!cameraOn && !camAllowed) await requestMedia("video");
-                    setCameraOn((p) => !p);
-                  }}
-                />
+                <div className="md:col-span-2 grid gap-3 md:grid-cols-2">
+                  <div className="flex min-h-[60px] items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                    <ToggleChip
+                      icon={Mic}
+                      label={micAllowed ? "Voz" : "Voz (pedir permissão)"}
+                      active={voiceOn}
+                      onToggle={async () => {
+                        if (!voiceOn && !micAllowed) await requestMedia("audio");
+                        setVoiceOn((p) => !p);
+                      }}
+                    />
+                  </div>
+                  <div className="flex min-h-[60px] items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                    <ToggleChip
+                      icon={Camera}
+                      label={camAllowed ? "Câmera" : "Câmera (pedir permissão)"}
+                      active={cameraOn}
+                      onToggle={async () => {
+                        if (!cameraOn && !camAllowed) await requestMedia("video");
+                        setCameraOn((p) => !p);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
