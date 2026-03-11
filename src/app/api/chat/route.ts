@@ -36,6 +36,39 @@ function extractQuotedText(message: string) {
   return match?.[1]?.trim() || null;
 }
 
+function stripUrls(text: string) {
+  return text.replace(/https?:\/\/\S+/gi, "").replace(/www\.\S+/gi, "").trim();
+}
+
+function prepareVideoPrompt(message: string) {
+  const basePrompt = cleanGenerativePrompt(message, "video");
+  const quotedSpeech = extractQuotedText(basePrompt) || extractQuotedText(message);
+
+  let visualPrompt = stripUrls(basePrompt);
+  if (quotedSpeech) {
+    visualPrompt = visualPrompt.replace(quotedSpeech, " ");
+  }
+
+  visualPrompt = visualPrompt
+    .replace(/["“”'']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!visualPrompt) {
+    visualPrompt = "um personagem de IA falando diretamente para a câmera em um cenário tecnológico futurista";
+  }
+
+  if (/\bfalando\b|\bfala\b|\bdizendo\b|\bdiscurso\b/i.test(basePrompt) && !/\bcâmera\b|\bcamera\b|\bspeaking to camera\b|\bdiretamente para a câmera\b/i.test(visualPrompt)) {
+    visualPrompt = `${visualPrompt}, falando diretamente para a câmera`;
+  }
+
+  return {
+    visualPrompt,
+    speechText: quotedSpeech || stripUrls(basePrompt),
+    displayPrompt: basePrompt,
+  };
+}
+
 function cleanGenerativePrompt(message: string, kind: "image" | "audio" | "video") {
   const quoted = extractQuotedText(message);
   if (kind === "audio" && quoted) return quoted;
@@ -125,15 +158,15 @@ export async function POST(req: NextRequest) {
       if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
       if (!process.env.FAL_KEY) throw new ApiError("FAL_KEY ausente", 500);
 
-      const prompt = cleanGenerativePrompt(message, "video");
+      const { visualPrompt, speechText, displayPrompt } = prepareVideoPrompt(message);
       try {
-        const translatedPrompt = await normalizeVisualPrompt(prompt);
-        const video = await falCreateVideo(translatedPrompt, "16:9", 6, prompt);
+        const translatedPrompt = await normalizeVisualPrompt(visualPrompt);
+        const video = await falCreateVideo(translatedPrompt, "16:9", 6, speechText);
         await incrementUsage(user.id, "video", monthKey);
 
         reply = buildMediaMessage({
           kind: "video",
-          prompt,
+          prompt: displayPrompt,
           url: video.url,
           aspectRatio: video.ratio,
           duration: video.duration,
@@ -147,7 +180,7 @@ export async function POST(req: NextRequest) {
         reply = buildMediaUnavailableReply("video");
       }
 
-      convId = await ensureConversation(user.id, conversationId, prompt);
+      convId = await ensureConversation(user.id, conversationId, displayPrompt);
     } else if (isAudioRequest(message)) {
       const audioQuota = await canUse(user, "audio", monthKey);
       if (!audioQuota.allowed) throw new ApiError("Limite de áudio atingido para seu plano", 403);
