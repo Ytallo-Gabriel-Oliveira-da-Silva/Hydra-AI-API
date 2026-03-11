@@ -117,7 +117,7 @@ function extractAsaasError(payload: unknown) {
 async function asaasRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const apiKey = process.env.ASAAS_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("ASAAS_API_KEY não configurada.");
+    throw new Error("ASAAS_API_KEY não configurada. Se a chave começa com $, escape no .env como \\$aact_...");
   }
 
   const response = await fetch(`${getAsaasApiBaseUrl()}${path}`, {
