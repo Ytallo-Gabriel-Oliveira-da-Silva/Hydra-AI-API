@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
 import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { isRunwayInsufficientCreditsError, runwayCreateVideo } from "@/lib/providers/runway";
+import { huggingFaceCreateVideo } from "@/lib/providers/huggingface";
 import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 
 const schema = z.object({
@@ -28,15 +28,15 @@ export async function POST(req: NextRequest) {
       ? await groqTranslateToEnglishPrompt(prompt).catch(() => prompt)
       : prompt;
 
-    const result = await runwayCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6);
+    const result = await huggingFaceCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6);
     await incrementUsage(user.id, "video", monthKey);
 
     return NextResponse.json({ video: result });
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
-    const friendly = isRunwayInsufficientCreditsError(err)
-      ? "A conta da Runway está sem créditos. O limite do plano Free no site já foi liberado, mas o provider de vídeo precisa de saldo para executar a geração."
+    const friendly = status === 402
+      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos do Hugging Face."
       : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

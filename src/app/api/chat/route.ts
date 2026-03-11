@@ -5,15 +5,13 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { isRunwayInsufficientCreditsError, runwayCreateVideo } from "@/lib/providers/runway";
+import { huggingFaceCreateVideo } from "@/lib/providers/huggingface";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
-import { resolveHydraVoiceId } from "@/lib/voices";
 import { generateSpeechAudio } from "@/lib/providers/speech";
 
 const schema = z.object({
   message: z.string().min(1),
   conversationId: z.string().optional(),
-  voiceId: z.string().optional(),
 });
 
 function isImageRequest(message: string) {
@@ -108,7 +106,7 @@ function buildMediaUnavailableReply(kind: "audio" | "video") {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, conversationId, voiceId } = schema.parse(body);
+    const { message, conversationId } = schema.parse(body);
 
     const user = await requireUser(req);
     const country = await requireCountry(req);
@@ -125,12 +123,12 @@ export async function POST(req: NextRequest) {
     if (isVideoRequest(message)) {
       const videoQuota = await canUse(user, "video", monthKey);
       if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
-      if (!process.env.RUNWAY_API_KEY) throw new ApiError("RUNWAY_API_KEY ausente", 500);
+      if (!process.env.HUGGINGFACE_API_KEY) throw new ApiError("HUGGINGFACE_API_KEY ausente", 500);
 
       const prompt = cleanGenerativePrompt(message, "video");
       try {
         const translatedPrompt = await normalizeVisualPrompt(prompt);
-        const video = await runwayCreateVideo(translatedPrompt, "16:9", 6);
+        const video = await huggingFaceCreateVideo(translatedPrompt, "16:9", 6);
         await incrementUsage(user.id, "video", monthKey);
 
         reply = buildMediaMessage({
@@ -140,9 +138,12 @@ export async function POST(req: NextRequest) {
           aspectRatio: video.ratio,
           duration: video.duration,
           taskId: video.taskId,
+          provider: video.provider,
+          model: video.model,
         });
       } catch (error) {
-        if (!isRunwayInsufficientCreditsError(error)) throw error;
+        const messageText = error instanceof Error ? error.message : "";
+        if (!/402|429/.test(messageText) && !messageText.includes("HUGGINGFACE_API_KEY ausente")) throw error;
         reply = buildMediaUnavailableReply("video");
       }
 
@@ -150,14 +151,13 @@ export async function POST(req: NextRequest) {
     } else if (isAudioRequest(message)) {
       const audioQuota = await canUse(user, "audio", monthKey);
       if (!audioQuota.allowed) throw new ApiError("Limite de áudio atingido para seu plano", 403);
-      if (!process.env.ELEVENLABS_API_KEY && !process.env.RUNWAY_API_KEY) {
-        throw new ApiError("Configure ELEVENLABS_API_KEY ou RUNWAY_API_KEY para gerar áudio", 500);
+      if (!process.env.DEEPGRAM_API_KEY) {
+        throw new ApiError("Configure DEEPGRAM_API_KEY para gerar áudio", 500);
       }
 
       const textToSpeak = cleanGenerativePrompt(message, "audio");
-      const chosenVoiceId = resolveHydraVoiceId(voiceId || process.env.ELEVENLABS_VOICE_ID);
       try {
-        const generated = await generateSpeechAudio(textToSpeak, chosenVoiceId);
+        const generated = await generateSpeechAudio(textToSpeak);
         await incrementUsage(user.id, "audio", monthKey);
 
         reply = buildMediaMessage({
@@ -165,13 +165,12 @@ export async function POST(req: NextRequest) {
           prompt: message,
           text: textToSpeak,
           audioUrl: generated.audioUrl,
-          voiceId: chosenVoiceId,
+          provider: generated.provider,
+          model: generated.model,
         });
       } catch (error) {
         const messageText = error instanceof Error ? error.message : "";
-        if (!isRunwayInsufficientCreditsError(error) && !messageText.includes("sem créditos para o fallback de áudio")) {
-          throw error;
-        }
+        if (!/402|429/.test(messageText) && !messageText.includes("DEEPGRAM_API_KEY ausente")) throw error;
         reply = buildMediaUnavailableReply("audio");
       }
 
@@ -217,11 +216,7 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : isRunwayInsufficientCreditsError(err)
-          ? "A conta da Runway está sem créditos. O recurso continua habilitado no seu plano, mas o provider de vídeo/áudio precisa de saldo para executar a tarefa."
-          : message.includes("sem créditos para o fallback de áudio")
-            ? "A ElevenLabs bloqueou essa voz no plano grátis e a Runway está sem créditos para o fallback."
-            : message;
+        : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }
 }

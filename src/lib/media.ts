@@ -13,7 +13,9 @@ export type AudioMessagePayload = {
   prompt: string;
   text: string;
   audioUrl: string;
-  voiceId: string;
+  voiceId?: string;
+  provider?: string;
+  model?: string;
 };
 
 export type VideoMessagePayload = {
@@ -23,6 +25,8 @@ export type VideoMessagePayload = {
   aspectRatio: string;
   duration: number;
   taskId?: string;
+  provider?: string;
+  model?: string;
 };
 
 export type MediaMessagePayload = ImageMessagePayload | AudioMessagePayload | VideoMessagePayload;

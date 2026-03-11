@@ -33,7 +33,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
-import { DEFAULT_HYDRA_VOICE_ID, findHydraVoiceById, findHydraVoiceByLabel, hydraVoiceOptions } from "@/lib/voices";
 
 type ThemePreset = {
   id: string;
@@ -87,7 +86,7 @@ const investigations = [
 ];
 
 const defaultSettingsState: SettingsState = {
-  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Titã", separateVoice: false },
+  general: { appearance: "Sistema", accent: "Padrão", language: "Autodetectar", spoken: "Autodetectar", voice: "Deepgram padrão", separateVoice: false },
   notifications: {
     responses: "Push",
     groups: "Push",
@@ -254,9 +253,6 @@ export default function DashboardPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [voiceReplyLoading, setVoiceReplyLoading] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState<string>(DEFAULT_HYDRA_VOICE_ID);
-  const [showVoicePicker, setShowVoicePicker] = useState(false);
-  const [voicePreviewLoading, setVoicePreviewLoading] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const settingsHydratedRef = useRef(false);
   const saveSettingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -288,8 +284,6 @@ export default function DashboardPage() {
     }),
     [theme],
   );
-
-  const selectedVoiceOption = useMemo(() => findHydraVoiceById(selectedVoice) || hydraVoiceOptions[0], [selectedVoice]);
 
   useEffect(() => {
     async function checkPermissions() {
@@ -325,8 +319,6 @@ export default function DashboardPage() {
         const parsed = JSON.parse(storedSettings) as SettingsState;
         setSettingsState(parsed);
       }
-      const storedVoice = localStorage.getItem("hydra_voice_id");
-      if (storedVoice) setSelectedVoice(findHydraVoiceById(storedVoice)?.id || DEFAULT_HYDRA_VOICE_ID);
     } catch {
       // ignore localStorage parsing errors
     }
@@ -376,22 +368,6 @@ export default function DashboardPage() {
   }, [settingsState, notificationPrefs, dataPrefs, planConfig]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("hydra_voice_id", selectedVoice);
-    }
-  }, [selectedVoice]);
-
-  useEffect(() => {
-    const voice = findHydraVoiceById(selectedVoice);
-    if (!voice) return;
-
-    setSettingsState((prev) => {
-      if (prev.general.voice === voice.label) return prev;
-      return { ...prev, general: { ...prev.general, voice: voice.label } };
-    });
-  }, [selectedVoice]);
-
-  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -401,11 +377,6 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar configurações");
       if (data.settings) {
-        const persistedVoice = findHydraVoiceByLabel(data.settings.settingsState?.general?.voice);
-        if (persistedVoice && typeof window !== "undefined" && !localStorage.getItem("hydra_voice_id")) {
-          setSelectedVoice(persistedVoice.id);
-        }
-
         if (data.settings.settingsState) {
           setSettingsState((prev: SettingsState) => ({
             ...prev,
@@ -746,7 +717,6 @@ export default function DashboardPage() {
         body: JSON.stringify({
           message: text,
           conversationId: conversationId || undefined,
-          voiceId: selectedVoice || undefined,
         }),
       });
       const data = await res.json();
@@ -794,38 +764,17 @@ export default function DashboardPage() {
     return true;
   }
 
-  async function playTextAudio(text: string, voiceId: string) {
+  async function playTextAudio(text: string) {
     const audioRes = await fetch("/api/audio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voiceId }),
+      body: JSON.stringify({ text }),
     });
     const audioData = await audioRes.json();
 
     if (!audioRes.ok) {
       const usedBrowserSpeech = speakWithBrowser(text);
       if (!usedBrowserSpeech) throw new Error(audioData.error || "Erro ao gerar áudio");
-      return;
-    }
-
-    const audio = new Audio(audioData.audio as string);
-    await audio.play();
-  }
-
-  async function previewVoice(voiceId: string) {
-    const voice = findHydraVoiceById(voiceId);
-    if (!voice) throw new Error("Voz inválida");
-
-    const audioRes = await fetch("/api/audio", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: voice.previewText, voiceId, preview: true }),
-    });
-    const audioData = await audioRes.json();
-
-    if (!audioRes.ok) {
-      const usedBrowserSpeech = speakWithBrowser(voice.previewText);
-      if (!usedBrowserSpeech) throw new Error(audioData.error || "Erro ao gerar prévia da voz");
       return;
     }
 
@@ -857,10 +806,6 @@ export default function DashboardPage() {
   }
 
   async function handleVoiceConversation() {
-    if (!selectedVoice) {
-      setShowVoicePicker(true);
-      return;
-    }
     if (!micAllowed) await requestMedia("audio");
     if (!micAllowed) return;
     try {
@@ -880,7 +825,7 @@ export default function DashboardPage() {
       const chatRes = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId, voiceId: selectedVoice || undefined }),
+        body: JSON.stringify({ message: text, conversationId }),
       });
       const chatData = await chatRes.json();
       if (!chatRes.ok) throw new Error(chatData.error || "Erro ao responder");
@@ -889,7 +834,7 @@ export default function DashboardPage() {
       setConversationId(newId);
       setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: reply }]);
 
-      await playTextAudio(getSpeakableResponse(reply), selectedVoice);
+      await playTextAudio(getSpeakableResponse(reply));
       loadHistory();
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Erro na conversa por voz");
@@ -1149,13 +1094,6 @@ export default function DashboardPage() {
                   placeholder="Pergunte alguma coisa"
                 />
                 <button
-                  onClick={() => setShowVoicePicker(true)}
-                  className="rounded-full border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
-                  title="Escolher voz da IA"
-                >
-                  Voz: {selectedVoiceOption.label}
-                </button>
-                <button
                   onClick={handleVoiceToText}
                   disabled={transcribing}
                   className={clsx(
@@ -1190,10 +1128,10 @@ export default function DashboardPage() {
               </div>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  Voz atual: <span className="font-semibold text-white">{selectedVoiceOption.label}</span>
+                  Voz sintetizada com <span className="font-semibold text-white">Deepgram</span>
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  Essa voz vale para conversar com a IA e para gerar áudios no chat.
+                  O chat por voz usa Deepgram para áudio e transcrição sem seleção manual de voz.
                 </span>
               </div>
               <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
@@ -1234,10 +1172,10 @@ export default function DashboardPage() {
                 <div className="mt-3 space-y-3">
                   {recentAudios.length === 0 && <p className="text-xs text-slate-300">Ainda não há áudios nesta conversa. Peça no chat para criar um áudio.</p>}
                   {recentAudios.map((item, index) => (
-                    <div key={`${item.voiceId}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <div key={`${item.audioUrl}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                       <p className="text-sm font-semibold text-white">Áudio gerado</p>
                       <p className="mt-1 text-xs text-slate-300">{item.text}</p>
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">Voz: {findHydraVoiceById(item.voiceId)?.label || item.voiceId}</p>
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-slate-400">Provider: {item.provider || "deepgram"}</p>
                       <audio controls className="mt-3 w-full" src={item.audioUrl} preload="metadata" />
                       <button onClick={() => downloadAsset(item.audioUrl, "hydra-audio.mp3")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
                         <Download className="h-3.5 w-3.5" />
@@ -1418,22 +1356,6 @@ export default function DashboardPage() {
                       value={settingsState.general.spoken}
                       onChange={(v) => setSettingsState((s) => ({ ...s, general: { ...s.general, spoken: v } }))}
                       options={["Autodetectar", "Português", "Inglês"]}
-                    />
-                    <SelectRow
-                      label="Voz"
-                      value={settingsState.general.voice}
-                      onChange={(v) => {
-                        const chosenVoice = findHydraVoiceByLabel(v);
-                        if (chosenVoice) setSelectedVoice(chosenVoice.id);
-                        setSettingsState((s) => ({ ...s, general: { ...s.general, voice: v } }));
-                      }}
-                      options={hydraVoiceOptions.map((voice) => voice.label)}
-                    />
-                    <ToggleRow
-                      label="Voz separada"
-                      description="Abrir voz em tela dedicada"
-                      value={settingsState.general.separateVoice}
-                      onChange={(v) => setSettingsState((s) => ({ ...s, general: { ...s.general, separateVoice: v } }))}
                     />
                   </div>
                 )}
@@ -1769,65 +1691,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {showVoicePicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-10">
-          <div className="w-full max-w-3xl rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-slate-400">Voz</p>
-                <p className="text-lg font-semibold text-white">Escolha a voz da HYDRA</p>
-                <p className="mt-1 text-sm text-slate-400">A voz escolhida será usada nas respostas faladas e nos áudios gerados pelo chat.</p>
-              </div>
-              <button
-                onClick={() => setShowVoicePicker(false)}
-                className="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20"
-              >
-                Fechar
-              </button>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {hydraVoiceOptions.map((v) => (
-                <div
-                  key={v.id}
-                  className={clsx(
-                    "flex items-center gap-3 rounded-xl border px-3 py-2",
-                    selectedVoice === v.id ? "border-emerald-300 bg-emerald-400/10" : "border-white/10 bg-white/5",
-                  )}
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-white">{v.label}</p>
-                    <p className="text-xs text-slate-400">{v.description}</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      setVoicePreviewLoading(v.id);
-                      try {
-                        await previewVoice(v.id);
-                      } catch (err) {
-                        setChatError(err instanceof Error ? err.message : "Erro ao tocar prévia");
-                      } finally {
-                        setVoicePreviewLoading(null);
-                      }
-                    }}
-                    className="rounded-full bg-white/10 px-3 py-2 text-xs text-white hover:bg-white/20"
-                  >
-                    {voicePreviewLoading === v.id ? "..." : "Prévia"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedVoice(v.id);
-                      setShowVoicePicker(false);
-                    }}
-                    className="rounded-full bg-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-100 hover:bg-emerald-500/30"
-                  >
-                    Usar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
