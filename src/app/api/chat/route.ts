@@ -14,7 +14,7 @@ import { getOpsPlaybookContext, isOpsQuery, shouldUseWebResearch } from "@/lib/o
 
 const schema = z.object({
   message: z.string().min(1),
-  conversationId: z.string().optional(),
+  conversationId: z.string().nullable().optional(),
 });
 
 function isImageRequest(message: string) {
@@ -249,7 +249,9 @@ function buildMediaUnavailableReply(kind: "audio" | "video") {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, conversationId } = schema.parse(body);
+    const parsed = schema.parse(body);
+    const message = parsed.message;
+    const conversationId = parsed.conversationId ?? undefined;
 
     const user = await requireUser(req);
     const country = await requireCountry(req);

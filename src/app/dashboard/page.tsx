@@ -843,7 +843,7 @@ export default function DashboardPage() {
       const chatRes = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, conversationId }),
+        body: JSON.stringify({ message: text, conversationId: conversationId || undefined }),
       });
       const chatData = await chatRes.json();
       if (!chatRes.ok) throw new Error(chatData.error || "Erro ao responder");
@@ -1093,9 +1093,9 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-3 shadow-xl backdrop-blur-sm sm:p-4">
+                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-2.5 shadow-xl backdrop-blur-sm sm:p-3">
                   <div className="flex items-start gap-3">
-                    <div className="mt-2 hidden h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200 sm:flex">
+                    <div className="mt-1.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200 sm:flex">
                       <Plus className="h-4 w-4" />
                     </div>
                     <div className="flex-1">
@@ -1109,17 +1109,17 @@ export default function DashboardPage() {
                           }
                         }}
                         rows={2}
-                        className="min-h-[56px] w-full resize-none bg-transparent text-base leading-relaxed text-white placeholder:text-slate-500 focus:outline-none sm:min-h-[64px]"
+                        className="min-h-[44px] w-full resize-none bg-transparent text-[15px] leading-relaxed text-white placeholder:text-slate-500 focus:outline-none sm:min-h-[48px]"
                         placeholder="Pergunte alguma coisa"
                       />
-                      <div className="mt-2.5 flex flex-col gap-3 border-t border-white/10 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="mt-2 flex flex-col gap-2 border-t border-white/10 pt-2 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={handleVoiceToText}
                             disabled={transcribing}
                             className={clsx(
-                              "rounded-2xl p-2.5 text-white transition sm:p-3",
+                              "rounded-2xl p-2 text-white transition sm:p-2.5",
                               transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
                             )}
                             title="Falar e transcrever"
@@ -1130,7 +1130,7 @@ export default function DashboardPage() {
                             disabled={sending || !input.trim()}
                             onClick={sendMessage}
                             className={clsx(
-                              "rounded-2xl p-2.5 text-white transition sm:p-3",
+                              "rounded-2xl p-2 text-white transition sm:p-2.5",
                               sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
                             )}
                           >
@@ -1140,7 +1140,7 @@ export default function DashboardPage() {
                             onClick={handleVoiceConversation}
                             disabled={voiceReplyLoading}
                             className={clsx(
-                              "rounded-2xl p-2.5 text-white transition sm:p-3",
+                              "rounded-2xl p-2 text-white transition sm:p-2.5",
                               voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
                             )}
                             title="Falar e ouvir a resposta"
