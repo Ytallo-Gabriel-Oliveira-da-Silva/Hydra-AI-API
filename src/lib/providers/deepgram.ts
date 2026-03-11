@@ -27,10 +27,6 @@ export function getDeepgramTtsModel() {
   return process.env.DEEPGRAM_TTS_MODEL?.trim() || "aura-2-thalia-en";
 }
 
-export function getDeepgramSttModel() {
-  return process.env.DEEPGRAM_STT_MODEL?.trim() || "nova-3";
-}
-
 export async function deepgramTextToSpeech(text: string) {
   const model = getDeepgramTtsModel();
   const response = await fetch(`${DEEPGRAM_API_BASE}/speak?model=${encodeURIComponent(model)}`, {
@@ -53,38 +49,4 @@ export async function deepgramTextToSpeech(text: string) {
     audioUrl: await blobToDataUrl(audioBlob),
     model,
   } satisfies DeepgramSpeechResult;
-}
-
-export async function deepgramTranscribe(buffer: Buffer, mime: string) {
-  const model = getDeepgramSttModel();
-  const response = await fetch(
-    `${DEEPGRAM_API_BASE}/listen?model=${encodeURIComponent(model)}&smart_format=true&detect_language=true&punctuate=true`,
-    {
-      method: "POST",
-      headers: deepgramHeaders({
-        "Content-Type": mime || "audio/webm",
-      }),
-      body: new Uint8Array(buffer),
-    },
-  );
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Deepgram STT erro ${response.status}: ${error}`);
-  }
-
-  const data = (await response.json()) as {
-    results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> };
-  };
-
-  const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim();
-  if (!transcript) {
-    throw new Error("Deepgram STT não retornou transcrição.");
-  }
-
-  return {
-    text: transcript,
-    model,
-    provider: "deepgram" as const,
-  };
 }

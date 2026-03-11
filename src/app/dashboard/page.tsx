@@ -1131,7 +1131,7 @@ export default function DashboardPage() {
                   Voz sintetizada com <span className="font-semibold text-white">Deepgram</span>
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  O chat por voz usa Deepgram para áudio e transcrição sem seleção manual de voz.
+                  O chat por voz usa Deepgram para áudio sem seleção manual de voz e Groq para transcrição.
                 </span>
               </div>
               <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
