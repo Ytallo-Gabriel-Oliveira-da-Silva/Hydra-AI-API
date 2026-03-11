@@ -292,6 +292,8 @@ export default function DashboardPage() {
     [theme],
   );
 
+  const workspaceHeight = "calc(100vh - 4rem)";
+
   useEffect(() => {
     async function checkPermissions() {
       if (typeof navigator === "undefined" || !navigator.permissions) return;
@@ -867,7 +869,10 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen text-slate-50" style={backgroundStyle}>
       <div className="mx-auto flex max-w-7xl gap-6 px-6 py-8">
-        <aside className="w-72 shrink-0 rounded-3xl border border-white/10 bg-black/30 p-4 backdrop-blur">
+        <aside
+          className="sticky top-8 flex w-72 shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-black/30 p-4 backdrop-blur"
+          style={{ height: workspaceHeight }}
+        >
           <button
             onClick={startNewChat}
             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-3 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
@@ -893,36 +898,38 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
             <p className="text-xs uppercase tracking-wide text-slate-400">Histórico</p>
-            <div className="mt-2 space-y-1">
-              {historyLoading && <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">Carregando histórico...</p>}
-              {historyError && (
-                <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-amber-200">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{historyError}</span>
-                </div>
-              )}
-              {!historyLoading && !historyError && history.length === 0 && (
-                <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">Sem conversas ainda.</p>
-              )}
-              {history.map((h) => {
-                const lastMessage = h.messages?.[h.messages.length - 1]?.content || h.messages?.[0]?.content;
-                const preview = getMessagePreview(lastMessage || "") || "Sem mensagens";
-                return (
-                  <button
-                    key={h.id}
-                    onClick={() => loadConversation(h.id)}
-                    className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/5"
-                  >
-                    <MessageSquare className="h-4 w-4 text-slate-400" />
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                      <p className="truncate text-xs font-semibold text-white">{h.title || "Sem título"}</p>
-                      <p className="truncate break-all text-[11px] text-slate-400">{preview}</p>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="mt-2 min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-1">
+                {historyLoading && <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">Carregando histórico...</p>}
+                {historyError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-amber-200">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{historyError}</span>
+                  </div>
+                )}
+                {!historyLoading && !historyError && history.length === 0 && (
+                  <p className="rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300">Sem conversas ainda.</p>
+                )}
+                {history.map((h) => {
+                  const lastMessage = h.messages?.[h.messages.length - 1]?.content || h.messages?.[0]?.content;
+                  const preview = getMessagePreview(lastMessage || "") || "Sem mensagens";
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => loadConversation(h.id)}
+                      className="flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                    >
+                      <MessageSquare className="h-4 w-4 text-slate-400" />
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <p className="truncate text-xs font-semibold text-white">{h.title || "Sem título"}</p>
+                        <p className="truncate break-all text-[11px] text-slate-400">{preview}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -981,7 +988,7 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        <main className="flex-1 space-y-6">
+        <main className="flex min-w-0 flex-1 flex-col" style={{ minHeight: workspaceHeight }}>
           <div className="relative flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-slate-300">Modo</p>
@@ -1055,8 +1062,9 @@ export default function DashboardPage() {
             </div>
           )}
 
+          <div className="mt-6 flex-1">
           {selected === "chat" && (
-            <motion.div whileHover={{ y: -3 }} className="rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl" style={surfaceStyle}>
+            <motion.div whileHover={{ y: -3 }} className="flex h-full min-h-[calc(100vh-11rem)] flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl" style={surfaceStyle}>
               <div className="flex flex-wrap items-start gap-3">
                 <div className="text-left">
                   <h1 className="text-3xl font-semibold text-white">Pronto para conversar com a HYDRA AI?</h1>
@@ -1073,7 +1081,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="mt-4 max-h-[420px] min-h-[240px] space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-4 text-left">
+              <div className="mt-4 min-h-[240px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-4 text-left">
                 {messages.length === 0 && (
                   <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-slate-200">
                     <Sparkles className="h-4 w-4 text-amber-300" />
@@ -1322,8 +1330,17 @@ export default function DashboardPage() {
               </div>
             </Card>
           )}
+          </div>
         </main>
       </div>
+
+      <footer className="border-t border-white/10 bg-black/20 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-5 text-xs text-slate-400 md:flex-row md:items-center md:justify-between">
+          <p>HYDRA AI Workspace</p>
+          <p>Painel multimodal com histórico persistente, mídia integrada e operações centralizadas.</p>
+          <p>{new Date().getFullYear()} HYDRA AI</p>
+        </div>
+      </footer>
 
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-10">
