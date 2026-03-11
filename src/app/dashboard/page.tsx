@@ -933,40 +933,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-3">
-            <p className="text-xs uppercase tracking-wide text-slate-300">Plano ativo</p>
-            <p className="mt-1 text-lg font-semibold text-white">{profilePlan}</p>
-            <p className="text-xs text-slate-300">
-              {billingNotice.planExpired && billingNotice.expiredAt
-                ? `Plano expirado em ${new Date(billingNotice.expiredAt).toLocaleDateString("pt-BR")}`
-                : settingsState.account.renewal
-                ? `Renovação em ${settingsState.account.renewal}`
-                : "Sem cobrança recorrente enquanto a conta estiver no Free."}
-            </p>
-            {billingNotice.planExpired && (
-              <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                {billingNotice.reason === "manual_renewal_required"
-                  ? `Seu plano ${billingNotice.expiredPlanName || "pago"} terminou e o pagamento via Pix nao renova automaticamente. A conta voltou para o Free e voce precisa pagar novamente para renovar.`
-                  : `Seu plano ${billingNotice.expiredPlanName || "pago"} expirou porque a renovacao automatica no cartao nao foi aprovada. A conta voltou para o Free ate uma nova assinatura ser concluida.`}
-              </div>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Link href="/plans" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20">
-                Ver planos
-              </Link>
-              <Link href="/plans" className="flex items-center gap-1 rounded-xl border border-white/20 px-3 py-2 text-xs text-white hover:bg-white/10">
-                <Copy className="h-3.5 w-3.5" />
-                Ver contratação
-              </Link>
-              {planSaved && (
-                <span className="flex items-center gap-1 text-[11px] text-emerald-200">
-                  <Check className="h-3.5 w-3.5" />
-                  Preferências comerciais salvas
-                </span>
-              )}
-            </div>
-          </div>
-
           <div className="mt-6 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
             <div className="relative h-12 w-12 overflow-hidden rounded-xl">
               <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-fuchsia-500 opacity-80" />
@@ -1064,109 +1030,159 @@ export default function DashboardPage() {
 
           <div className="mt-6 flex-1">
           {selected === "chat" && (
-            <motion.div whileHover={{ y: -3 }} className="flex h-full min-h-[calc(100vh-11rem)] flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl" style={surfaceStyle}>
-              <div className="flex flex-wrap items-start gap-3">
-                <div className="text-left">
-                  <h1 className="text-3xl font-semibold text-white">Pronto para conversar com a HYDRA AI?</h1>
-                  <p className="mt-1 text-slate-200">Pergunte qualquer coisa ou continue um chat multimodal.</p>
+            <div className="flex h-full flex-col gap-4">
+              <motion.div whileHover={{ y: -3 }} className="flex min-h-[calc(100vh-13.5rem)] flex-col rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl" style={surfaceStyle}>
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="text-left">
+                    <h1 className="text-3xl font-semibold text-white">Pronto para conversar com a HYDRA AI?</h1>
+                    <p className="mt-1 text-slate-200">Pergunte qualquer coisa ou continue um chat multimodal.</p>
+                  </div>
+                  <div className="ml-auto flex items-center gap-2">
+                    <button
+                      onClick={startNewChat}
+                      className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+                    >
+                      Novo chat limpo
+                    </button>
+                    {conversationId && <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] text-slate-200">ID ativo: {conversationId.slice(0, 8)}</span>}
+                  </div>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                  <button
-                    onClick={startNewChat}
-                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
-                  >
-                    Novo chat limpo
-                  </button>
-                  {conversationId && <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] text-slate-200">ID ativo: {conversationId.slice(0, 8)}</span>}
-                </div>
-              </div>
 
-              <div className="mt-4 min-h-[240px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-4 text-left">
-                {messages.length === 0 && (
-                  <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                    <Sparkles className="h-4 w-4 text-amber-300" />
-                    <div>
-                      <p className="font-semibold text-white">Pergunte algo como:</p>
-                      <p className="text-xs text-slate-300">"gere uma imagem de uma flor cyberpunk", "crie um áudio falando olá mundo" ou "gere um vídeo de chuva neon"</p>
+                <div className="mt-4 min-h-[240px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-4 text-left">
+                  {messages.length === 0 && (
+                    <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                      <Sparkles className="h-4 w-4 text-amber-300" />
+                      <div>
+                        <p className="font-semibold text-white">Pergunte algo como:</p>
+                        <p className="text-xs text-slate-300">"gere uma imagem de uma flor cyberpunk", "crie um áudio falando olá mundo" ou "gere um vídeo de chuva neon"</p>
+                      </div>
                     </div>
+                  )}
+                  {messages.map((msg, idx) => (
+                    <MessageBubble
+                      key={`${msg.role}-${idx}-${msg.content.slice(0, 8)}`}
+                      role={msg.role}
+                      content={msg.content}
+                      accent={theme.accentFrom}
+                      onOpenMedia={(viewer) => setMediaViewer(viewer)}
+                    />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {chatError && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{chatError}</span>
                   </div>
                 )}
-                {messages.map((msg, idx) => (
-                  <MessageBubble
-                    key={`${msg.role}-${idx}-${msg.content.slice(0, 8)}`}
-                    role={msg.role}
-                    content={msg.content}
-                    accent={theme.accentFrom}
-                    onOpenMedia={(viewer) => setMediaViewer(viewer)}
+
+                <div className="mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-full bg-black/40 px-4 py-3 text-left text-slate-100">
+                  <Plus className="h-4 w-4" />
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
+                    placeholder="Pergunte alguma coisa"
                   />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {chatError && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{chatError}</span>
+                  <button
+                    onClick={handleVoiceToText}
+                    disabled={transcribing}
+                    className={clsx(
+                      "rounded-full p-2 text-white transition",
+                      transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
+                    )}
+                    title="Falar e transcrever"
+                  >
+                    {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                  </button>
+                  <button
+                    disabled={sending || !input.trim()}
+                    onClick={sendMessage}
+                    className={clsx(
+                      "rounded-full p-2 text-white transition",
+                      sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
+                    )}
+                  >
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={handleVoiceConversation}
+                    disabled={voiceReplyLoading}
+                    className={clsx(
+                      "rounded-full p-2 text-white transition",
+                      voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
+                    )}
+                    title="Falar e ouvir a resposta"
+                  >
+                    {voiceReplyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                  </button>
                 </div>
-              )}
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                    Voz sintetizada disponível
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+                    O chat por voz está ativo com resposta falada e transcrição automática.
+                  </span>
+                </div>
+                <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
+              </motion.div>
 
-              <div className="mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-full bg-black/40 px-4 py-3 text-left text-slate-100">
-                <Plus className="h-4 w-4" />
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none"
-                  placeholder="Pergunte alguma coisa"
-                />
-                <button
-                  onClick={handleVoiceToText}
-                  disabled={transcribing}
-                  className={clsx(
-                    "rounded-full p-2 text-white transition",
-                    transcribing ? "bg-white/10" : "bg-white/15 hover:bg-white/25",
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-sm">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Workspace</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                    <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-cyan-100">Chat multimodal ativo</span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Histórico persistente</span>
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Mídia integrada</span>
+                  </div>
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-300">
+                    Ambiente organizado para conversas, geração de mídia e continuidade de contexto, mantendo a leitura do histórico limpa e a operação centralizada.
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-sm">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Plano</p>
+                  <p className="mt-2 text-2xl font-semibold text-white">{profilePlan}</p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    {billingNotice.planExpired && billingNotice.expiredAt
+                      ? `Plano expirado em ${new Date(billingNotice.expiredAt).toLocaleDateString("pt-BR")}`
+                      : settingsState.account.renewal
+                        ? `Renovação em ${settingsState.account.renewal}`
+                        : "Sem cobrança recorrente no momento."}
+                  </p>
+                  {billingNotice.planExpired && (
+                    <div className="mt-3 rounded-2xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+                      {billingNotice.reason === "manual_renewal_required"
+                        ? `Seu plano ${billingNotice.expiredPlanName || "pago"} terminou e o pagamento via Pix não renova automaticamente.`
+                        : `Seu plano ${billingNotice.expiredPlanName || "pago"} expirou porque a renovação automática no cartão não foi aprovada.`}
+                    </div>
                   )}
-                  title="Falar e transcrever"
-                >
-                  {transcribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
-                </button>
-                <button
-                  disabled={sending || !input.trim()}
-                  onClick={sendMessage}
-                  className={clsx(
-                    "rounded-full p-2 text-white transition",
-                    sending || !input.trim() ? "bg-white/10" : "bg-white/20 hover:bg-white/30",
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Link href="/plans" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20">
+                      Ver planos
+                    </Link>
+                    <Link href="/plans" className="flex items-center gap-1 rounded-xl border border-white/20 px-3 py-2 text-xs text-white hover:bg-white/10">
+                      <Copy className="h-3.5 w-3.5" />
+                      Ver contratação
+                    </Link>
+                  </div>
+                  {planSaved && (
+                    <span className="mt-3 inline-flex items-center gap-1 text-[11px] text-emerald-200">
+                      <Check className="h-3.5 w-3.5" />
+                      Preferências comerciais salvas
+                    </span>
                   )}
-                >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                </button>
-                <button
-                  onClick={handleVoiceConversation}
-                  disabled={voiceReplyLoading}
-                  className={clsx(
-                    "rounded-full p-2 text-white transition",
-                    voiceReplyLoading ? "bg-emerald-400/20" : "bg-emerald-500/30 hover:bg-emerald-500/40",
-                  )}
-                  title="Falar e ouvir a resposta"
-                >
-                  {voiceReplyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                </button>
+                </div>
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  Voz sintetizada disponível
-                </span>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-                  O chat por voz está ativo com resposta falada e transcrição automática.
-                </span>
-              </div>
-              <p className="mt-2 text-center text-xs text-slate-400">Enter envia, Shift+Enter quebra linha.</p>
-            </motion.div>
+            </div>
           )}
 
           {selected === "gallery" && (
