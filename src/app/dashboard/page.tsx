@@ -1047,7 +1047,7 @@ export default function DashboardPage() {
           <div className="mt-6 flex-1">
           {selected === "chat" && (
             <div className="flex h-full flex-col gap-4">
-              <motion.div whileHover={{ y: -3 }} className="flex min-h-[auto] flex-col rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl sm:p-6 lg:min-h-[calc(100vh-13.5rem)] lg:p-8" style={surfaceStyle}>
+              <motion.div whileHover={{ y: -3 }} className="flex min-h-[auto] flex-col rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl sm:p-6 lg:min-h-[calc(100vh-11.5rem)] lg:p-8" style={surfaceStyle}>
                 <div className="flex flex-wrap items-start gap-3">
                   <div className="text-left">
                     <h1 className="text-2xl font-semibold text-white sm:text-3xl">Pronto para conversar com a HYDRA AI?</h1>
@@ -1064,7 +1064,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 min-h-[220px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-3 text-left sm:min-h-[240px] sm:p-4">
+                <div className="mt-4 min-h-[260px] flex-1 space-y-3 overflow-y-auto rounded-2xl border border-white/5 bg-black/20 p-3 text-left sm:min-h-[320px] sm:p-4 lg:min-h-[420px]">
                   {messages.length === 0 && (
                     <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-slate-200">
                       <Sparkles className="h-4 w-4 text-amber-300" />
@@ -1093,7 +1093,7 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="mx-auto mt-4 w-full max-w-4xl rounded-3xl border border-white/10 bg-black/35 p-2.5 shadow-xl backdrop-blur-sm sm:p-3">
+                <div className="mx-auto mt-4 w-full max-w-3xl rounded-3xl border border-white/10 bg-black/35 p-2.5 shadow-xl backdrop-blur-sm sm:p-3">
                   <div className="flex items-start gap-3">
                     <div className="mt-1.5 hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-slate-200 sm:flex">
                       <Plus className="h-4 w-4" />
@@ -1154,7 +1154,7 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
 
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="mt-2 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Workspace</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
