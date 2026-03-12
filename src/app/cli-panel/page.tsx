@@ -1,27 +1,13 @@
-import { Suspense } from "react";
 import { createBreadcrumbStructuredData, createMetadata } from "@/lib/seo";
-import { cliPanelMetrics, cliPanelModules, cliPanelRoadmap, platformSurfaces, sharedPlatformPrinciples } from "@/lib/platform";
-import { PanelShell } from "@/components/platform/panel-shell";
-import { CliPanelClient } from "@/components/platform/cli-panel-client";
-
-const cliCommands = [
-  "hydra login",
-  "hydra whoami",
-  "hydra balance",
-  "hydra usage",
-  "hydra models",
-  "hydra text",
-  "hydra image",
-  "hydra audio",
-  "hydra config",
-  "hydra update",
-];
+import { cliPanelMetrics, cliPanelModules, platformSurfaces } from "@/lib/platform";
+import { SurfaceLanding } from "@/components/platform/surface-landing";
+import { Download, KeyRound, Laptop2 } from "lucide-react";
 
 export const metadata = createMetadata({
-  title: "Hydra CLI Panel",
-  description: "Estrutura inicial do Hydra CLI Panel com licenca, ativacao de dispositivos, downloads, releases e consumo vinculado a creditos.",
+  title: "Hydra CLI",
+  description: "Landing oficial do Hydra CLI com identidade própria para licença, downloads, dispositivos e operação de campo.",
   path: "/cli-panel",
-  keywords: ["Hydra CLI Panel", "licenca CLI", "painel de downloads", "ativacao de dispositivos"],
+  keywords: ["Hydra CLI", "console profissional", "licença CLI", "downloads e releases"],
 });
 
 export default function CliPanelPage() {
@@ -40,50 +26,31 @@ export default function CliPanelPage() {
         suppressHydrationWarning
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbStructuredData) }}
       />
-      <PanelShell
-        eyebrow="Hydra CLI Panel"
-        title="Painel de licenca, distribuicao e operacao do CLI profissional"
-        description="O CLI da Hydra fica separado do Hydra Cyber e nasce como um produto proprio: licenca para habilitar o cliente, creditos para sustentar o uso real da IA e um painel dedicado para ativacoes, downloads e releases."
-        accentClass="bg-gradient-to-r from-indigo-500 to-fuchsia-500"
+      <SurfaceLanding
+        eyebrow="Hydra CLI"
+        title="Console profissional com identidade própria para licença, downloads e operação real"
+        description="A Hydra CLI agora entra com cara de produto premium: posicionamento claro, valor comercial da licença, releases visíveis e uma jornada própria de login, cadastro e dashboard."
         surface={surface}
         metrics={cliPanelMetrics}
         modules={cliPanelModules}
-        roadmap={cliPanelRoadmap}
-        companionHref="/api-panel"
-        companionLabel="Ver API Panel"
-      >
-        <div className="mt-6 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Comandos do V1</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {cliCommands.map((command) => (
-                <div key={command} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white">
-                  {command}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Regras de negocio compartilhadas</p>
-            <div className="mt-4 space-y-3">
-              {sharedPlatformPrinciples.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4 text-fuchsia-200" />
-                    <p className="text-sm font-semibold text-white">{item.title}</p>
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-300">{item.summary}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <Suspense fallback={<div className="mt-6 rounded-[2rem] border border-white/10 bg-black/20 p-5 text-sm text-slate-300">Carregando painel...</div>}>
-          <CliPanelClient />
-        </Suspense>
-      </PanelShell>
+        accentClass="from-emerald-500 via-lime-400 to-amber-300"
+        chipClass="text-emerald-200"
+        heroNote="Aqui o usuário precisa entender de primeira que não entrou em uma cópia do painel de API. O eixo é outro: licença, dispositivo, release, distribuição, operação em terminal e confiança de produto."
+        featureItems={[
+          { title: "Licença como produto", description: "A primeira impressão comunica valor comercial: seats, updates, devices e política operacional bem claros.", icon: KeyRound },
+          { title: "Distribuição limpa", description: "Downloads, builds por plataforma e releases entram como parte central da proposta e não como apêndice.", icon: Download },
+          { title: "Operação por máquina", description: "A linguagem visual lembra console, device fleet e administração de campo para diferenciar da API e da home principal.", icon: Laptop2 },
+        ]}
+        requiredItems={[
+          "Landing pública própria com identidade de console profissional.",
+          "Auth pensada para licença, dispositivos e operação de campo.",
+          "Dashboard com foco em licenças, releases, downloads, conta e segurança.",
+          "Assinatura visual diferente da Hydra API e da HYDRA principal.",
+        ]}
+        primaryHref="/cli-panel/login"
+        secondaryHref="/cli-panel/register"
+        dashboardHref="/cli-panel/dashboard"
+      />
     </>
   );
 }

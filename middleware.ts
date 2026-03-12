@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const protectedPaths = ["/dashboard", "/api-panel", "/cli-panel"];
+const surfaceBareRoutes: Record<string, string> = {
+  "/": "",
+  "/login": "/login",
+  "/register": "/register",
+  "/dashboard": "/dashboard",
+};
 
 function normalizeHostname(hostname: string) {
   return hostname.split(",")[0].trim().split(":")[0].toLowerCase();
@@ -26,12 +32,19 @@ function resolveSurfacePath(req: NextRequest) {
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const surfaceBase = resolveSurfacePath(req);
+  const hasSession = req.cookies.has("hydra_session");
 
-  if (pathname === "/") {
-    const surfacePath = resolveSurfacePath(req);
-    if (surfacePath) {
+  if (surfaceBase && pathname in surfaceBareRoutes) {
+    if (pathname === "/dashboard" && !hasSession) {
+      const loginUrl = new URL("/login", req.url);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    const targetPath = `${surfaceBase}${surfaceBareRoutes[pathname]}`;
+    if (pathname !== targetPath) {
       const url = req.nextUrl.clone();
-      url.pathname = surfacePath;
+      url.pathname = targetPath;
       return NextResponse.rewrite(url);
     }
   }
@@ -39,7 +52,6 @@ export function middleware(req: NextRequest) {
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
   if (!isProtected) return NextResponse.next();
 
-  const hasSession = req.cookies.has("hydra_session");
   if (!hasSession) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
