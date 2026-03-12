@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { getCliLicenseTier } from "@/lib/billing-products";
 import { getNextAccessEndForPlan } from "@/lib/plans";
 
+const db = prisma as any;
+
 type TransactionWithRelations = {
   id: string;
   userId: string;
@@ -54,24 +56,33 @@ export async function fulfillPaymentTransaction(transactionId: string, event?: s
     if (!transaction.planId || !transaction.plan) throw new Error("Plano da transação não encontrado");
     const renewalAt = getNextAccessEndForPlan(transaction.plan.slug, transaction.user?.currentPeriodEndsAt || null);
 
-    await prisma.$transaction([
-      prisma.paymentTransaction.update({
-        where: { id: transaction.id },
-        data: {
-          status: "paid",
-          metadata: mergeMetadata(transaction.metadata, { asaasEvent: event || null }),
-        },
-      }),
-      prisma.user.update({
-        where: { id: transaction.userId },
-        data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt },
-      }),
-    ]);
+    const claimedPlan = await db.paymentTransaction.updateMany({
+      where: { id: transaction.id, status: { not: "paid" } },
+      data: { status: "paid", metadata: mergeMetadata(transaction.metadata, { asaasEvent: event || null }) },
+    });
+    if (claimedPlan.count === 0) {
+      return prisma.paymentTransaction.findUnique({ where: { id: transaction.id }, include: { plan: true, user: true } });
+    }
+    await prisma.user.update({
+      where: { id: transaction.userId },
+      data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt },
+    });
 
     return prisma.paymentTransaction.findUnique({ where: { id: transaction.id }, include: { plan: true, user: true } });
   }
 
   if (transaction.productType === "api_credit") {
+    // Atomic claim: only the first caller to arrive here processes the settlement.
+    // If two concurrent requests (webhook + polling) both pass the status === "paid"
+    // guard above, this updateMany ensures only one proceeds and credits the wallet.
+    const claimedCredit = await db.paymentTransaction.updateMany({
+      where: { id: transaction.id, status: { not: "paid" } },
+      data: { status: "paid", metadata: mergeMetadata(transaction.metadata, { asaasEvent: event || null }) },
+    });
+    if (claimedCredit.count === 0) {
+      return prisma.paymentTransaction.findUnique({ where: { id: transaction.id }, include: { plan: true, user: true } });
+    }
+
     const wallet = await prisma.creditWallet.upsert({
       where: { userId: transaction.userId },
       update: {},
@@ -84,13 +95,6 @@ export async function fulfillPaymentTransaction(transactionId: string, event?: s
     });
 
     await prisma.$transaction([
-      prisma.paymentTransaction.update({
-        where: { id: transaction.id },
-        data: {
-          status: "paid",
-          metadata: mergeMetadata(transaction.metadata, { asaasEvent: event || null }),
-        },
-      }),
       prisma.creditWallet.update({
         where: { id: wallet.id },
         data: {
@@ -120,6 +124,16 @@ export async function fulfillPaymentTransaction(transactionId: string, event?: s
     const tier = getCliLicenseTier(transaction.productRef || "");
     if (!tier) throw new Error("Produto de licença CLI inválido");
 
+    // Atomic claim before creating the license — prevents duplicate issuance on
+    // concurrent webhook + polling calls.
+    const claimedLicense = await db.paymentTransaction.updateMany({
+      where: { id: transaction.id, status: { not: "paid" } },
+      data: { status: "paid_pending_license" },
+    });
+    if (claimedLicense.count === 0) {
+      return prisma.paymentTransaction.findUnique({ where: { id: transaction.id }, include: { plan: true, user: true } });
+    }
+
     const existingLicense = await prisma.cliLicense.findFirst({
       where: {
         userId: transaction.userId,
@@ -141,7 +155,7 @@ export async function fulfillPaymentTransaction(transactionId: string, event?: s
       },
     });
 
-    await prisma.paymentTransaction.update({
+    await db.paymentTransaction.updateMany({
       where: { id: transaction.id },
       data: {
         status: "paid",

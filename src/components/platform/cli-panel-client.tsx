@@ -68,6 +68,15 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleString("pt-BR");
 }
 
+function safeUrl(url: string): string | null {
+  try {
+    const { protocol } = new URL(url);
+    return ["https:", "http:"].includes(protocol) ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export function CliPanelClient() {
   const searchParams = useSearchParams();
   const [overview, setOverview] = useState<CliOverview | null>(null);
@@ -468,9 +477,13 @@ export function CliPanelClient() {
                   <span>Publicado em {formatDate(release.publishedAt)}</span>
                 </div>
                 {release.notes && <p className="mt-3 text-sm text-slate-300">{release.notes}</p>}
-                <a href={release.downloadUrl} className="mt-4 inline-flex text-xs font-semibold text-cyan-200 hover:text-cyan-100">
-                  Baixar release
-                </a>
+                {safeUrl(release.downloadUrl) ? (
+                  <a href={safeUrl(release.downloadUrl)!} rel="noopener noreferrer" className="mt-4 inline-flex text-xs font-semibold text-cyan-200 hover:text-cyan-100">
+                    Baixar release
+                  </a>
+                ) : (
+                  <span className="mt-4 inline-flex text-xs text-slate-500">URL indisponível</span>
+                )}
               </div>
             ))}
           </div>

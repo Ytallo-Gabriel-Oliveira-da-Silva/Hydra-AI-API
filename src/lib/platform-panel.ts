@@ -159,6 +159,9 @@ export async function createApiKeyForUser({
   scopes: string[];
   expiresAt?: Date | null;
 }) {
+  const activeKeyCount = await prisma.apiKey.count({ where: { userId, status: "active" } });
+  if (activeKeyCount >= 20) throw new Error("Limite de 20 chaves ativas atingido. Revogue chaves antigas para criar novas.");
+
   const secret = buildApiSecret();
   const prefix = secret.slice(0, API_KEY_PREFIX_LENGTH);
   const apiKey = await prisma.apiKey.create({
