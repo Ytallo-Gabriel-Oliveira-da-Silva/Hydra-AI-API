@@ -74,6 +74,11 @@ export default function Home() {
               />
             </div>
 
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <QuickLink href="/api-panel" label="Hydra API Panel" description="Estrutura inicial para chaves, créditos, billing e analytics empresariais" />
+              <QuickLink href="/cli-panel" label="Hydra CLI Panel" description="Estrutura inicial para licença, downloads, ativações e consumo do CLI" />
+            </div>
+
             <div className="mt-8 flex flex-wrap gap-3 text-sm text-slate-200">
               <Badge>Interface conversacional premium</Badge>
               <Badge>Planos Free/Plus/Pro</Badge>
@@ -130,6 +135,10 @@ export default function Home() {
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-cyan-300" />
                 Middleware protege /dashboard: sem cookie de sessão, redirecionamos para /login.
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="mt-1 h-2 w-2 rounded-full bg-emerald-300" />
+                API Panel e CLI Panel agora têm estrutura própria dentro do projeto para evoluir sem duplicar a base principal.
               </li>
             </ul>
             <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-200">

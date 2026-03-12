@@ -32,6 +32,12 @@ model User {
   settings       UserSettings?
   familyMembers  FamilyMember[]
   payments       PaymentTransaction[]
+  creditWallet   CreditWallet?
+  creditLedgerEntries CreditLedgerEntry[]
+  apiKeys        ApiKey[]
+  apiRequestLogs ApiRequestLog[]
+  cliLicenses    CliLicense[]
+  cliDeviceActivations CliDeviceActivation[]
 }
 
 model Domain {
@@ -194,4 +200,125 @@ model ImageAsset {
   title     String
   url       String
   createdAt DateTime @default(now())
+}
+
+model CreditWallet {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  currency        String   @default("BRL")
+  balanceCents    Int      @default(0)
+  creditBalance   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  ledgerEntries   CreditLedgerEntry[]
+}
+
+model CreditLedgerEntry {
+  id              String   @id @default(cuid())
+  walletId        String
+  wallet          CreditWallet @relation(fields: [walletId], references: [id])
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  kind            String
+  description     String?
+  amountCents     Int      @default(0)
+  credits         Int      @default(0)
+  referenceType   String?
+  referenceId     String?
+  metadata        String?
+  createdAt       DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model ApiKey {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  name          String
+  prefix        String
+  secretHash    String
+  status        String   @default("active")
+  scopes        String
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  requestLogs   ApiRequestLog[]
+
+  @@index([userId, status])
+}
+
+model ApiRequestLog {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  apiKeyId      String?
+  apiKey        ApiKey?  @relation(fields: [apiKeyId], references: [id])
+  resourceType  String
+  endpoint      String
+  statusCode    Int
+  latencyMs     Int?
+  creditCost    Int      @default(0)
+  sourceIp      String?
+  userAgent     String?
+  metadata      String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([apiKeyId, createdAt])
+}
+
+model CliLicense {
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+  code          String   @unique
+  status        String   @default("available")
+  tier          String   @default("starter")
+  seatLimit     Int      @default(1)
+  deviceLimit   Int      @default(2)
+  updatesUntil  DateTime?
+  issuedAt      DateTime @default(now())
+  activatedAt   DateTime?
+  metadata      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activations   CliDeviceActivation[]
+
+  @@index([userId, status])
+}
+
+model CliDeviceActivation {
+  id                String   @id @default(cuid())
+  licenseId         String
+  license           CliLicense @relation(fields: [licenseId], references: [id])
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  deviceName        String
+  deviceFingerprint String
+  platform          String
+  cliVersion        String
+  lastSeenAt        DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime @default(now())
+
+  @@unique([licenseId, deviceFingerprint])
+  @@index([userId, createdAt])
+}
+
+model CliRelease {
+  id           String   @id @default(cuid())
+  version      String
+  channel      String   @default("stable")
+  platform     String
+  arch         String
+  downloadUrl  String
+  checksum     String?
+  notes        String?
+  publishedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@unique([version, channel, platform, arch])
 }
