@@ -4,11 +4,21 @@ import type { NextRequest } from "next/server";
 const protectedPaths = ["/dashboard", "/api-panel", "/cli-panel"];
 
 function normalizeHostname(hostname: string) {
-  return hostname.split(":")[0].toLowerCase();
+  return hostname.split(",")[0].trim().split(":")[0].toLowerCase();
+}
+
+function getRequestHostname(req: NextRequest) {
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  if (forwardedHost) return normalizeHostname(forwardedHost);
+
+  const host = req.headers.get("host");
+  if (host) return normalizeHostname(host);
+
+  return normalizeHostname(req.nextUrl.hostname);
 }
 
 function resolveSurfacePath(req: NextRequest) {
-  const hostname = normalizeHostname(req.nextUrl.hostname);
+  const hostname = getRequestHostname(req);
   if (hostname.startsWith("api.")) return "/api-panel";
   if (hostname.startsWith("cli.")) return "/cli-panel";
   return null;
