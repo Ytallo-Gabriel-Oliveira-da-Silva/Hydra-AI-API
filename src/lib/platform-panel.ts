@@ -129,7 +129,7 @@ export async function getApiPanelOverview(userId: string) {
       status: payment.status,
       paymentMethod: payment.paymentMethod,
       createdAt: payment.createdAt.toISOString(),
-      planName: payment.plan.name,
+      planName: payment.displayName || payment.plan?.name || payment.productRef || "Pagamento Hydra",
     })),
   };
 }

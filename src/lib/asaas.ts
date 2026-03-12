@@ -39,11 +39,12 @@ export type AsaasCreateCustomerResponse = {
 
 export type AsaasCreatePaymentPayload = {
   customer: string;
-  billingType: "PIX";
+  billingType: "PIX" | "CREDIT_CARD" | "UNDEFINED";
   value: number;
   dueDate: string;
   description: string;
   externalReference: string;
+  callback?: AsaasCheckoutCallback;
 };
 
 export type AsaasCreatePaymentResponse = {
@@ -59,8 +60,8 @@ export type AsaasPixQrCodeResponse = {
 };
 
 export type AsaasCreateCheckoutPayload = {
-  billingTypes: ["CREDIT_CARD"];
-  chargeTypes: ["RECURRENT"];
+  billingTypes: Array<"PIX" | "CREDIT_CARD">;
+  chargeTypes: Array<"DETACHED" | "RECURRENT" | "INSTALLMENT">;
   minutesToExpire: number;
   externalReference: string;
   callback: AsaasCheckoutCallback;
@@ -70,10 +71,14 @@ export type AsaasCreateCheckoutPayload = {
     quantity: number;
     value: number;
   }>;
-  subscription: {
+  subscription?: {
     cycle: "MONTHLY" | "YEARLY";
     nextDueDate: string;
     endDate: string;
+  };
+  installment?: {
+    value: number;
+    count: number;
   };
 };
 

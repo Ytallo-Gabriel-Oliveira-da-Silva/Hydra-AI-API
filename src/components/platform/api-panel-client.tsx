@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Copy, KeyRound, Loader2, Plus, ShieldCheck, Wallet } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { AlertCircle, CheckCircle2, Copy, CreditCard, ExternalLink, KeyRound, Loader2, Plus, QrCode, ShieldCheck, Wallet } from "lucide-react";
+import { apiCreditPacks } from "@/lib/billing-products";
 
 type ApiPanelOverview = {
   wallet: {
@@ -70,6 +72,7 @@ function formatDate(value: string | null) {
 }
 
 export function ApiPanelClient() {
+  const searchParams = useSearchParams();
   const [overview, setOverview] = useState<ApiPanelOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +81,12 @@ export function ApiPanelClient() {
   const [selectedScopes, setSelectedScopes] = useState<string[]>(["text"]);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [createdPrefix, setCreatedPrefix] = useState<string | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchaseMethod, setPurchaseMethod] = useState<"pix" | "credit">("pix");
+  const [selectedPackId, setSelectedPackId] = useState(apiCreditPacks[1]?.id || apiCreditPacks[0]?.id || "");
+  const [cpfCnpj, setCpfCnpj] = useState("");
+  const [transaction, setTransaction] = useState<any | null>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
 
   async function loadOverview() {
     try {
@@ -97,6 +106,20 @@ export function ApiPanelClient() {
   useEffect(() => {
     void loadOverview();
   }, []);
+
+  useEffect(() => {
+    const transactionId = searchParams.get("transaction");
+    if (!transactionId) return;
+    void syncTransactionStatus(transactionId, searchParams.get("result") === "success");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!transaction?.id || transaction.status === "paid") return;
+    const interval = setInterval(() => {
+      void syncTransactionStatus(transaction.id, false);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [transaction?.id, transaction?.status]);
 
   async function createKey() {
     if (!formName.trim() || selectedScopes.length === 0) return;
@@ -145,6 +168,61 @@ export function ApiPanelClient() {
     setSelectedScopes((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope]);
   }
 
+  async function createPurchase() {
+    if (!selectedPackId) return;
+    try {
+      setPurchaseLoading(true);
+      setError(null);
+      setPurchaseSuccess(null);
+      const res = await fetch("/api/billing/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          category: "api_credit",
+          productId: selectedPackId,
+          paymentMethod: purchaseMethod,
+          cpfCnpj: purchaseMethod === "pix" ? cpfCnpj : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao iniciar compra de créditos");
+      setTransaction(data.transaction);
+      if (purchaseMethod === "credit" && data.transaction.checkoutUrl) {
+        window.location.assign(data.transaction.checkoutUrl as string);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao iniciar compra de créditos");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  }
+
+  async function syncTransactionStatus(transactionId?: string, showPendingMessage?: boolean) {
+    const id = transactionId || transaction?.id;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/billing/checkout/status?transactionId=${encodeURIComponent(id)}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao consultar pagamento");
+      setTransaction(data.transaction);
+      if (data.transaction.status === "paid") {
+        setPurchaseSuccess(`Recarga confirmada. ${data.transaction.creditsGranted || 0} créditos adicionados à carteira.`);
+        await loadOverview();
+        return;
+      }
+      if (["expired", "overdue", "refunded", "deleted", "failed", "canceled"].includes(data.transaction.status)) {
+        setError("A cobrança não foi confirmada. Gere uma nova recarga para continuar.");
+        return;
+      }
+      if (showPendingMessage) {
+        setPurchaseSuccess("Pagamento recebido. Aguardando a confirmação final da Asaas.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao consultar pagamento");
+    }
+  }
+
   return (
     <div className="mt-6 space-y-6">
       {error && (
@@ -177,6 +255,100 @@ export function ApiPanelClient() {
           </div>
         </div>
       )}
+
+      {purchaseSuccess && (
+        <div className="rounded-3xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          {purchaseSuccess}
+        </div>
+      )}
+
+      <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">
+        <div className="flex items-center gap-3">
+          <CreditCard className="h-5 w-5 text-cyan-200" />
+          <div>
+            <p className="text-sm font-semibold text-white">Comprar créditos da API</p>
+            <p className="text-xs text-slate-300">Recarga real via Pix ou cartão para ativar consumo na Hydra API.</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid gap-3 md:grid-cols-3">
+            {apiCreditPacks.map((pack) => (
+              <button
+                key={pack.id}
+                onClick={() => setSelectedPackId(pack.id)}
+                className={`rounded-3xl border p-4 text-left transition ${selectedPackId === pack.id ? "border-cyan-300/40 bg-cyan-400/10" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+              >
+                <p className="text-sm font-semibold text-white">{pack.name}</p>
+                <p className="mt-2 text-2xl font-semibold text-white">R$ {pack.price}</p>
+                <p className="mt-1 text-xs text-cyan-200">{pack.credits} créditos</p>
+                <p className="mt-3 text-xs leading-relaxed text-slate-300">{pack.description}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                { id: "pix", label: "Pix", icon: QrCode },
+                { id: "credit", label: "Cartão", icon: CreditCard },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setPurchaseMethod(item.id as "pix" | "credit")}
+                  className={`rounded-2xl border px-4 py-3 text-left ${purchaseMethod === item.id ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-white/10 bg-black/20 text-slate-300"}`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <p className="mt-2 text-sm font-semibold">{item.label}</p>
+                </button>
+              ))}
+            </div>
+
+            {purchaseMethod === "pix" && (
+              <input
+                value={cpfCnpj}
+                onChange={(event) => setCpfCnpj(event.target.value)}
+                placeholder="CPF ou CNPJ do pagador"
+                className="mt-4 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500"
+              />
+            )}
+
+            <button
+              onClick={createPurchase}
+              disabled={purchaseLoading || (purchaseMethod === "pix" && !cpfCnpj.trim())}
+              className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {purchaseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Comprar agora
+            </button>
+
+            {transaction?.productType === "api_credit" && (
+              <div className="mt-4 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
+                <p className="font-semibold text-white">Cobrança gerada</p>
+                <p className="mt-1 text-xs text-slate-400">{transaction.displayName}</p>
+                {transaction.paymentMethod === "pix" ? (
+                  <>
+                    {transaction.pixQrCodeImage && <img src={transaction.pixQrCodeImage} alt="QR Code Pix" className="mt-4 h-44 w-44 rounded-2xl bg-white p-3" />}
+                    <p className="mt-4 break-all text-xs text-slate-300">{transaction.pixCode}</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button onClick={() => transaction.pixCode && navigator.clipboard.writeText(transaction.pixCode)} className="rounded-2xl border border-white/15 px-3 py-2 text-xs text-white hover:bg-white/10">
+                        <Copy className="mr-2 inline h-3.5 w-3.5" /> Copiar Pix
+                      </button>
+                      <button onClick={() => syncTransactionStatus()} className="rounded-2xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
+                        Verificar status
+                      </button>
+                    </div>
+                  </>
+                ) : transaction.checkoutUrl ? (
+                  <a href={transaction.checkoutUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-cyan-200 hover:text-cyan-100">
+                    Abrir checkout seguro <ExternalLink className="h-4 w-4" />
+                  </a>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[2rem] border border-white/10 bg-black/20 p-5">

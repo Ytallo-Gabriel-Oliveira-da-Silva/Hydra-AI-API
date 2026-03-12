@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getNextAccessEndForPlan } from "@/lib/plans";
+import { fulfillPaymentTransaction } from "@/lib/payment-fulfillment";
 
 const db = prisma as any;
 
@@ -137,30 +137,19 @@ export async function POST(req: NextRequest) {
 
       if ((event || "").toUpperCase() === "CHECKOUT_PAID") {
         if (transaction.status !== "paid") {
-          const renewalAt = getNextAccessEndForPlan(
-            transaction.plan.slug,
-            transaction.user.currentPeriodEndsAt,
-          );
-
-          await prisma.$transaction([
-            db.paymentTransaction.update({
-              where: { id: transaction.id },
-              data: {
-                status: "paid",
-                metadata: JSON.stringify({
-                  ...metadata,
-                  asaasCheckoutId: checkoutId,
-                  asaasCheckoutStatus: checkout?.status || "PAID",
-                  asaasCheckoutUrl: checkout?.link || metadata.asaasCheckoutUrl || null,
-                  asaasEvent: event || null,
-                }),
-              },
-            }),
-            prisma.user.update({
-              where: { id: transaction.userId },
-              data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt } as any,
-            }),
-          ]);
+          await db.paymentTransaction.update({
+            where: { id: transaction.id },
+            data: {
+              metadata: JSON.stringify({
+                ...metadata,
+                asaasCheckoutId: checkoutId,
+                asaasCheckoutStatus: checkout?.status || "PAID",
+                asaasCheckoutUrl: checkout?.link || metadata.asaasCheckoutUrl || null,
+                asaasEvent: event || null,
+              }),
+            },
+          });
+          await fulfillPaymentTransaction(transaction.id, event || null);
         }
 
         return NextResponse.json({ ok: true, status: "paid" });
@@ -200,10 +189,6 @@ export async function POST(req: NextRequest) {
 
     if (shouldMarkAsPaid(event, payment?.status)) {
       if (transaction.status !== "paid") {
-        const renewalAt = getNextAccessEndForPlan(
-          transaction.plan.slug,
-          transaction.user.currentPeriodEndsAt,
-        );
         const metadata = transaction.metadata
           ? (() => {
               try {
@@ -214,24 +199,18 @@ export async function POST(req: NextRequest) {
             })()
           : {};
 
-        await prisma.$transaction([
-          db.paymentTransaction.update({
-            where: { id: transaction.id },
-            data: {
-              status: "paid",
-              metadata: JSON.stringify({
-                ...metadata,
-                asaasEvent: event || null,
-                asaasPaymentId: payment?.id || null,
-                externalReference: reference,
-              }),
-            },
-          }),
-          prisma.user.update({
-            where: { id: transaction.userId },
-            data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt } as any,
-          }),
-        ]);
+        await db.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            metadata: JSON.stringify({
+              ...metadata,
+              asaasEvent: event || null,
+              asaasPaymentId: payment?.id || null,
+              externalReference: reference,
+            }),
+          },
+        });
+        await fulfillPaymentTransaction(transaction.id, event || null);
       }
 
       return NextResponse.json({ ok: true, status: "paid" });

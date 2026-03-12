@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createBreadcrumbStructuredData, createMetadata } from "@/lib/seo";
 import { apiCapabilities, apiPanelMetrics, apiPanelModules, apiPanelRoadmap, platformSurfaces, sharedPlatformPrinciples } from "@/lib/platform";
 import { PanelShell } from "@/components/platform/panel-shell";
@@ -70,7 +71,9 @@ export default function ApiPanelPage() {
           </div>
         </div>
 
-        <ApiPanelClient />
+        <Suspense fallback={<div className="mt-6 rounded-[2rem] border border-white/10 bg-black/20 p-5 text-sm text-slate-300">Carregando painel...</div>}>
+          <ApiPanelClient />
+        </Suspense>
       </PanelShell>
     </>
   );

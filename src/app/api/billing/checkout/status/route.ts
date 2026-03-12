@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, ApiError } from "@/lib/api-guard";
 import { prisma } from "@/lib/db";
-import { getNextAccessEndForPlan } from "@/lib/plans";
 import { getAsaasPayment, isAsaasStatusFailed, isAsaasStatusPaid } from "@/lib/asaas";
+import { fulfillPaymentTransaction, parsePaymentMetadata, serializeBillingTransaction } from "@/lib/payment-fulfillment";
 
 const db = prisma as any;
-
-function parseMetadata(metadata?: string | null) {
-  if (!metadata) return {} as Record<string, unknown>;
-  try {
-    return JSON.parse(metadata) as Record<string, unknown>;
-  } catch {
-    return {} as Record<string, unknown>;
-  }
-}
-
-function serializeTransaction(transaction: any, metadata: Record<string, unknown>) {
-  return {
-    id: transaction.id,
-    status: transaction.status,
-    paymentMethod: transaction.paymentMethod,
-    amount: transaction.amount,
-    paymentLink: transaction.paymentLink,
-    pixCode: transaction.pixCode,
-    expiresAt: transaction.expiresAt,
-    pixQrCodeImage: typeof metadata.pixQrCodeImage === "string" ? metadata.pixQrCodeImage : null,
-    checkoutUrl: typeof metadata.asaasCheckoutUrl === "string" ? metadata.asaasCheckoutUrl : transaction.paymentLink,
-    asaasStatus: typeof metadata.asaasStatus === "string" ? metadata.asaasStatus : null,
-  };
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,7 +19,7 @@ export async function GET(req: NextRequest) {
 
     if (!transaction) throw new ApiError("Pagamento não encontrado", 404);
 
-    let metadata = parseMetadata(transaction.metadata);
+    let metadata = parsePaymentMetadata(transaction.metadata);
     const asaasPaymentId = typeof metadata.asaasPaymentId === "string" ? metadata.asaasPaymentId : null;
 
     if (transaction.paymentMethod === "pix" && transaction.status !== "paid" && transaction.expiresAt && transaction.expiresAt < new Date()) {
@@ -64,17 +40,11 @@ export async function GET(req: NextRequest) {
       };
 
       if (isAsaasStatusPaid(payment.status)) {
-        const renewalAt = getNextAccessEndForPlan(transaction.plan.slug, transaction.user.currentPeriodEndsAt);
-        await prisma.$transaction([
-          db.paymentTransaction.update({
-            where: { id: transaction.id },
-            data: { status: "paid", metadata: JSON.stringify(metadata) },
-          }),
-          prisma.user.update({
-            where: { id: transaction.userId },
-            data: { planId: transaction.planId, currentPeriodEndsAt: renewalAt } as any,
-          }),
-        ]);
+        await db.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: { metadata: JSON.stringify(metadata) },
+        });
+        await fulfillPaymentTransaction(transaction.id, typeof metadata.asaasEvent === "string" ? metadata.asaasEvent : "PAYMENT_STATUS_SYNC");
       } else if (isAsaasStatusFailed(payment.status)) {
         await db.paymentTransaction.update({
           where: { id: transaction.id },
@@ -92,10 +62,10 @@ export async function GET(req: NextRequest) {
         include: { plan: true, user: true },
       });
       if (!transaction) throw new ApiError("Pagamento não encontrado", 404);
-      metadata = parseMetadata(transaction.metadata);
+      metadata = parsePaymentMetadata(transaction.metadata);
     }
 
-    return NextResponse.json({ transaction: serializeTransaction(transaction, metadata) });
+    return NextResponse.json({ transaction: serializeBillingTransaction(transaction) });
   } catch (error: unknown) {
     const status = error instanceof ApiError ? error.status : 400;
     const message = error instanceof Error ? error.message : "Erro ao consultar pagamento";

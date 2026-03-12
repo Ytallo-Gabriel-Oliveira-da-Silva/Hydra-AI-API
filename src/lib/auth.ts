@@ -41,6 +41,11 @@ function shouldUseSecureSessionCookie() {
   return process.env.NODE_ENV === "production";
 }
 
+function getSessionCookieDomain() {
+  const domain = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  return domain || undefined;
+}
+
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
@@ -169,6 +174,7 @@ export function setSessionCookie(res: NextResponse, token: string, expiresAt: Da
     secure: shouldUseSecureSessionCookie(),
     expires: expiresAt,
     path: "/",
+    domain: getSessionCookieDomain(),
   });
 }
 
@@ -179,6 +185,7 @@ export function clearSessionCookie(res: NextResponse) {
     sameSite: "lax",
     secure: shouldUseSecureSessionCookie(),
     path: "/",
+    domain: getSessionCookieDomain(),
   });
 }
 

@@ -63,6 +63,51 @@ async function main() {
     });
   }
 
+  const releases = [
+    {
+      version: '0.1.0',
+      channel: 'stable',
+      platform: 'linux',
+      arch: 'x64',
+      downloadUrl: 'https://cli.hydra-ai.shop/downloads/hydra-cli-0.1.0-linux-x64.tar.gz',
+      checksum: 'pending-checksum-linux-x64',
+      notes: 'Primeira release estável do Hydra CLI para Linux.',
+    },
+    {
+      version: '0.1.0',
+      channel: 'stable',
+      platform: 'windows',
+      arch: 'x64',
+      downloadUrl: 'https://cli.hydra-ai.shop/downloads/hydra-cli-0.1.0-windows-x64.zip',
+      checksum: 'pending-checksum-windows-x64',
+      notes: 'Primeira release estável do Hydra CLI para Windows.',
+    },
+    {
+      version: '0.1.0',
+      channel: 'stable',
+      platform: 'macos',
+      arch: 'arm64',
+      downloadUrl: 'https://cli.hydra-ai.shop/downloads/hydra-cli-0.1.0-macos-arm64.tar.gz',
+      checksum: 'pending-checksum-macos-arm64',
+      notes: 'Primeira release estável do Hydra CLI para macOS Apple Silicon.',
+    },
+  ];
+
+  for (const release of releases) {
+    await prisma.cliRelease.upsert({
+      where: {
+        version_channel_platform_arch: {
+          version: release.version,
+          channel: release.channel,
+          platform: release.platform,
+          arch: release.arch,
+        },
+      },
+      update: release,
+      create: release,
+    });
+  }
+
   console.log('Seed complete');
 }
 

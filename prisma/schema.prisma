@@ -125,10 +125,15 @@ model PaymentTransaction {
   id            String   @id @default(cuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id])
-  planId        String
-  plan          Plan     @relation(fields: [planId], references: [id])
+  planId        String?
+  plan          Plan?    @relation(fields: [planId], references: [id])
+  productType   String   @default("plan")
+  productRef    String?
+  displayName   String?
   paymentMethod String
   amount        Int
+  quantity      Int      @default(1)
+  creditsGranted Int     @default(0)
   currency      String   @default("BRL")
   installments  Int?
   status        String
@@ -138,6 +143,8 @@ model PaymentTransaction {
   metadata      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([userId, productType, createdAt])
 }
 
 model QuotaUsage {
