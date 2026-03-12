@@ -4,7 +4,8 @@ import { SurfaceAuthForm } from "@/components/platform/surface-auth-form";
 export const metadata = createMetadata({
   title: "Login Hydra API",
   description: "Acesso dedicado ao cockpit da Hydra API para billing, chaves, métricas e observabilidade.",
-  path: "/api-panel/login",
+  path: "/login",
+  canonicalBaseUrl: process.env.API_APP_URL,
   keywords: ["login hydra api", "auth api hydra"],
 });
 

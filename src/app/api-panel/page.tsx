@@ -6,8 +6,9 @@ import { Activity, FileKey2, Wallet } from "lucide-react";
 export const metadata = createMetadata({
   title: "Hydra API",
   description: "Landing oficial da Hydra API com onboarding, billing, documentação operacional e acesso ao dashboard dedicado.",
-  path: "/api-panel",
-  keywords: ["Hydra API", "API enterprise", "dashboard de API", "créditos e billing"],
+  path: "/",
+  canonicalBaseUrl: process.env.API_APP_URL,
+  keywords: ["Hydra API", "api.hydra-ai.shop", "API enterprise", "dashboard de API", "créditos e billing", "login hydra api", "cadastro hydra api"],
 });
 
 export default function ApiPanelPage() {

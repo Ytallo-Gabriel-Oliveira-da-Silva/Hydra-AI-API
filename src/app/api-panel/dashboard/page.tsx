@@ -6,8 +6,10 @@ import { SurfaceDashboardShell } from "@/components/platform/surface-dashboard-s
 export const metadata = createMetadata({
   title: "Dashboard Hydra API",
   description: "Dashboard privado da Hydra API com menu, billing, métricas, chaves e observabilidade.",
-  path: "/api-panel/dashboard",
+  path: "/dashboard",
+  canonicalBaseUrl: process.env.API_APP_URL,
   keywords: ["dashboard hydra api", "billing api", "api keys hydra"],
+  robots: { index: false, follow: false },
 });
 
 export default function ApiPanelDashboardPage() {

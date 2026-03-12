@@ -64,6 +64,21 @@ const nav = [
   { id: "apps", label: "Aplicativos", icon: LayoutDashboard },
 ];
 
+const surfaceShortcuts = [
+  {
+    id: "api-surface",
+    label: "Ir para Hydra API",
+    href: process.env.NEXT_PUBLIC_API_APP_URL || "https://api.hydra-ai.shop",
+    icon: Rocket,
+  },
+  {
+    id: "cli-surface",
+    label: "Ir para Hydra CLI",
+    href: process.env.NEXT_PUBLIC_CLI_APP_URL || "https://cli.hydra-ai.shop",
+    icon: KeyRound,
+  },
+];
+
 const settings = [
   "Geral",
   "Notificações",
@@ -885,6 +900,19 @@ export default function DashboardPage() {
                 <span className="flex-1 text-left">{item.label}</span>
                 {selected === item.id && <Sparkles className="h-4 w-4 text-amber-300" />}
               </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-1">
+            {surfaceShortcuts.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/10"
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="flex-1 text-left">{item.label}</span>
+              </Link>
             ))}
           </div>
 

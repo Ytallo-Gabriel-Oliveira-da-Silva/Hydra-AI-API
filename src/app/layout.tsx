@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { organizationStructuredData, siteConfig, websiteStructuredData } from "@/lib/seo";
+import { createSiteNavigationStructuredData, organizationStructuredData, siteConfig, surfaceConfig, websiteStructuredData } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,6 +12,32 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const mainNavigationStructuredData = createSiteNavigationStructuredData("HYDRA AI", [
+  { name: "Home", url: surfaceConfig.mainUrl },
+  { name: "Login", url: `${surfaceConfig.mainUrl}/login` },
+  { name: "Cadastro", url: `${surfaceConfig.mainUrl}/register` },
+  { name: "Planos", url: `${surfaceConfig.mainUrl}/plans` },
+  { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
+  { name: "Hydra API", url: surfaceConfig.apiUrl },
+  { name: "Hydra CLI", url: surfaceConfig.cliUrl },
+]);
+
+const apiNavigationStructuredData = createSiteNavigationStructuredData("Hydra API", [
+  { name: "Hydra API Home", url: surfaceConfig.apiUrl },
+  { name: "Login API", url: `${surfaceConfig.apiUrl}/login` },
+  { name: "Cadastro API", url: `${surfaceConfig.apiUrl}/register` },
+  { name: "Dashboard API", url: `${surfaceConfig.apiUrl}/dashboard` },
+  { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
+]);
+
+const cliNavigationStructuredData = createSiteNavigationStructuredData("Hydra CLI", [
+  { name: "Hydra CLI Home", url: surfaceConfig.cliUrl },
+  { name: "Login CLI", url: `${surfaceConfig.cliUrl}/login` },
+  { name: "Cadastro CLI", url: `${surfaceConfig.cliUrl}/register` },
+  { name: "Dashboard CLI", url: `${surfaceConfig.cliUrl}/dashboard` },
+  { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
+]);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -99,6 +125,21 @@ export default function RootLayout({
           type="application/ld+json"
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        />
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(mainNavigationStructuredData) }}
+        />
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(apiNavigationStructuredData) }}
+        />
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(cliNavigationStructuredData) }}
         />
       </head>
       <body

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 const fallbackUrl = "http://localhost:3000";
+const fallbackApiUrl = "https://api.hydra-ai.shop";
+const fallbackCliUrl = "https://cli.hydra-ai.shop";
 
 export const siteConfig = {
   name: "HYDRA AI",
@@ -10,6 +12,12 @@ export const siteConfig = {
   url: process.env.APP_URL || fallbackUrl,
   logoPath: "/logo-hydra-ai.jpeg",
   supportEmail: "support@hydra-ai.shop",
+};
+
+export const surfaceConfig = {
+  mainUrl: process.env.APP_URL || fallbackUrl,
+  apiUrl: process.env.API_APP_URL || fallbackApiUrl,
+  cliUrl: process.env.CLI_APP_URL || fallbackCliUrl,
 };
 
 export function absoluteUrl(path = "/") {
@@ -23,13 +31,17 @@ export function createMetadata({
   path = "/",
   keywords = [],
   robots,
+  canonicalBaseUrl,
 }: {
   title: string;
   description: string;
   path?: string;
   keywords?: string[];
   robots?: Metadata["robots"];
+  canonicalBaseUrl?: string;
 }): Metadata {
+  const canonicalUrl = new URL(path.startsWith("/") ? path : `/${path}`, canonicalBaseUrl || siteConfig.url).toString();
+
   return {
     title,
     description,
@@ -41,12 +53,12 @@ export function createMetadata({
       ...keywords,
     ],
     alternates: {
-      canonical: path,
+      canonical: canonicalUrl,
     },
     openGraph: {
       type: "website",
       locale: "pt_BR",
-      url: path,
+      url: canonicalUrl,
       siteName: siteConfig.name,
       title,
       description,
@@ -74,13 +86,32 @@ export const websiteStructuredData = {
   "@type": "WebSite",
   name: siteConfig.name,
   alternateName: siteConfig.shortName,
-  url: siteConfig.url,
+  url: surfaceConfig.mainUrl,
   description: siteConfig.description,
   inLanguage: "pt-BR",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${surfaceConfig.mainUrl}/search?query={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+  hasPart: [
+    {
+      "@type": "WebSite",
+      name: "Hydra API",
+      url: surfaceConfig.apiUrl,
+      description: "Superfície dedicada para API keys, recargas, observabilidade e billing.",
+    },
+    {
+      "@type": "WebSite",
+      name: "Hydra CLI",
+      url: surfaceConfig.cliUrl,
+      description: "Superfície dedicada para licenças, dispositivos, releases e operação CLI.",
+    },
+  ],
   publisher: {
     "@type": "Organization",
     name: siteConfig.name,
-    url: siteConfig.url,
+    url: surfaceConfig.mainUrl,
   },
 };
 
@@ -88,7 +119,7 @@ export const organizationStructuredData = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: siteConfig.name,
-  url: siteConfig.url,
+  url: surfaceConfig.mainUrl,
   logo: absoluteUrl(siteConfig.logoPath),
   email: siteConfig.supportEmail,
   contactPoint: [
@@ -100,8 +131,25 @@ export const organizationStructuredData = {
       url: absoluteUrl("/support"),
     },
   ],
-  sameAs: [siteConfig.url],
+  sameAs: [surfaceConfig.mainUrl, surfaceConfig.apiUrl, surfaceConfig.cliUrl],
 };
+
+export function createSiteNavigationStructuredData(
+  siteName: string,
+  items: Array<{ name: string; url: string }>,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `${siteName} - links principais`,
+    itemListElement: items.map((item, index) => ({
+      "@type": "SiteNavigationElement",
+      position: index + 1,
+      name: item.name,
+      url: item.url,
+    })),
+  };
+}
 
 export function createBreadcrumbStructuredData(
   items: Array<{ name: string; path: string }>,

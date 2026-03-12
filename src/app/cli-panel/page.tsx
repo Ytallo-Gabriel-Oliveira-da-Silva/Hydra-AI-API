@@ -6,8 +6,9 @@ import { Download, KeyRound, Laptop2 } from "lucide-react";
 export const metadata = createMetadata({
   title: "Hydra CLI",
   description: "Landing oficial do Hydra CLI com identidade própria para licença, downloads, dispositivos e operação de campo.",
-  path: "/cli-panel",
-  keywords: ["Hydra CLI", "console profissional", "licença CLI", "downloads e releases"],
+  path: "/",
+  canonicalBaseUrl: process.env.CLI_APP_URL,
+  keywords: ["Hydra CLI", "cli.hydra-ai.shop", "console profissional", "licença CLI", "downloads e releases", "login hydra cli", "cadastro hydra cli"],
 });
 
 export default function CliPanelPage() {

@@ -4,7 +4,8 @@ import { SurfaceAuthForm } from "@/components/platform/surface-auth-form";
 export const metadata = createMetadata({
   title: "Cadastro Hydra CLI",
   description: "Cadastro dedicado para o Hydra CLI com foco em licença, downloads e operação profissional.",
-  path: "/cli-panel/register",
+  path: "/register",
+  canonicalBaseUrl: process.env.CLI_APP_URL,
   keywords: ["cadastro hydra cli", "register hydra cli"],
 });
 

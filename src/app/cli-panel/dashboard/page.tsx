@@ -6,8 +6,10 @@ import { SurfaceDashboardShell } from "@/components/platform/surface-dashboard-s
 export const metadata = createMetadata({
   title: "Dashboard Hydra CLI",
   description: "Dashboard privado do Hydra CLI com menu, licenças, releases, dispositivos, conta e segurança.",
-  path: "/cli-panel/dashboard",
+  path: "/dashboard",
+  canonicalBaseUrl: process.env.CLI_APP_URL,
   keywords: ["dashboard hydra cli", "licença hydra cli", "releases hydra cli"],
+  robots: { index: false, follow: false },
 });
 
 export default function CliPanelDashboardPage() {

@@ -7,9 +7,19 @@ import type { ReactNode } from "react";
 export const metadata = createMetadata({
   title: "Plataforma multimodal",
   description:
-    "Conheca a HYDRA AI, plataforma de inteligencia artificial com chat, busca, imagem, audio, video, planos e suporte profissional.",
+    "Conheca a HYDRA AI: plataforma principal multimodal com chat, busca, imagem, audio e video, alem das superficies dedicadas Hydra API e Hydra CLI.",
   path: "/",
-  keywords: ["HYDRA AI oficial", "chat multimodal", "IA com audio e video"],
+  keywords: [
+    "HYDRA AI oficial",
+    "Hydra API",
+    "Hydra CLI",
+    "api.hydra-ai.shop",
+    "cli.hydra-ai.shop",
+    "chat multimodal",
+    "IA com audio e video",
+    "login hydra ai",
+    "cadastro hydra ai",
+  ],
 });
 
 export default function Home() {
