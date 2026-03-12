@@ -14,6 +14,7 @@ import {
   normalizeCpfCnpj,
   resolveAsaasPixExpirationDate,
 } from "@/lib/asaas";
+import { requireSurfaceAppUrl } from "@/lib/app-url";
 
 const db = prisma as any;
 
@@ -35,11 +36,7 @@ const schema = z.object({
 });
 
 function buildCallbackUrl(pathname: string, transactionId: string, result: "success" | "canceled" | "expired") {
-  const baseUrl = process.env.APP_URL?.trim();
-  if (!baseUrl) {
-    throw new ApiError("APP_URL não configurada para redirecionamento do checkout.", 500);
-  }
-
+  const baseUrl = requireSurfaceAppUrl("main");
   const url = new URL(pathname, baseUrl);
   url.searchParams.set("transaction", transactionId);
   url.searchParams.set("result", result);

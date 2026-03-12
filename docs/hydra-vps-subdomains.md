@@ -14,12 +14,16 @@ Use pelo menos esta base em producao:
 DATABASE_URL="file:./data.db"
 NODE_ENV="production"
 APP_URL="https://hydra-ai.shop"
+API_APP_URL="https://api.hydra-ai.shop"
+CLI_APP_URL="https://cli.hydra-ai.shop"
 SESSION_COOKIE_SECURE="true"
 SESSION_COOKIE_DOMAIN=".hydra-ai.shop"
 ASAAS_API_KEY="..."
 ASAAS_ENVIRONMENT="production"
 ASAAS_WEBHOOK_TOKEN="..."
 ```
+
+`APP_URL` fica reservado para a superficie principal. `API_APP_URL` e `CLI_APP_URL` devem ser usados para os retornos de compra de cada painel.
 
 `SESSION_COOKIE_DOMAIN=".hydra-ai.shop"` e o ponto critico para compartilhar login entre a landing, o API Panel e o CLI Panel.
 

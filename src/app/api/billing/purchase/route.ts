@@ -13,6 +13,7 @@ import {
   normalizeCpfCnpj,
   resolveAsaasPixExpirationDate,
 } from "@/lib/asaas";
+import { requireSurfaceAppUrl, type AppSurface } from "@/lib/app-url";
 import { serializeBillingTransaction } from "@/lib/payment-fulfillment";
 
 const db = prisma as any;
@@ -35,12 +36,8 @@ const schema = z.object({
   }
 });
 
-function buildCallbackUrl(pathname: string, transactionId: string, result: "success" | "canceled" | "expired") {
-  const baseUrl = process.env.APP_URL?.trim();
-  if (!baseUrl) {
-    throw new ApiError("APP_URL não configurada para redirecionamento do checkout.", 500);
-  }
-
+function buildCallbackUrl(surface: AppSurface, pathname: string, transactionId: string, result: "success" | "canceled" | "expired") {
+  const baseUrl = requireSurfaceAppUrl(surface);
   const url = new URL(pathname, baseUrl);
   url.searchParams.set("transaction", transactionId);
   url.searchParams.set("result", result);
@@ -52,6 +49,7 @@ function getProductDefinition(category: "api_credit" | "cli_license", productId:
     const pack = getApiCreditPack(productId);
     if (!pack) throw new ApiError("Pack de créditos não encontrado", 404);
     return {
+      surface: "api" as const,
       displayName: `Hydra API ${pack.name}`,
       amount: pack.price,
       creditsGranted: pack.credits,
@@ -63,6 +61,7 @@ function getProductDefinition(category: "api_credit" | "cli_license", productId:
   const tier = getCliLicenseTier(productId);
   if (!tier) throw new ApiError("Licença CLI não encontrada", 404);
   return {
+    surface: "cli" as const,
     displayName: tier.name,
     amount: tier.price,
     creditsGranted: 0,
@@ -117,9 +116,9 @@ export async function POST(req: NextRequest) {
         description: `${product.displayName} - HYDRA AI`,
         externalReference: transaction.id,
         callback: {
-          successUrl: buildCallbackUrl(product.redirectPath, transaction.id, "success"),
-          cancelUrl: buildCallbackUrl(product.redirectPath, transaction.id, "canceled"),
-          expiredUrl: buildCallbackUrl(product.redirectPath, transaction.id, "expired"),
+          successUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "success"),
+          cancelUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "canceled"),
+          expiredUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "expired"),
         },
       });
 
@@ -152,9 +151,9 @@ export async function POST(req: NextRequest) {
       minutesToExpire: 60,
       externalReference: transaction.id,
       callback: {
-        successUrl: buildCallbackUrl(product.redirectPath, transaction.id, "success"),
-        cancelUrl: buildCallbackUrl(product.redirectPath, transaction.id, "canceled"),
-        expiredUrl: buildCallbackUrl(product.redirectPath, transaction.id, "expired"),
+        successUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "success"),
+        cancelUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "canceled"),
+        expiredUrl: buildCallbackUrl(product.surface, product.redirectPath, transaction.id, "expired"),
       },
       items: [
         {

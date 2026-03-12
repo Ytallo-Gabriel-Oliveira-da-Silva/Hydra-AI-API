@@ -60,6 +60,8 @@ Use `.env.example` como referencia. Em producao, configure pelo menos:
 - `JWT_SECRET`
 - `RESET_TOKEN_SECRET`
 - `APP_URL`
+- `API_APP_URL`
+- `CLI_APP_URL`
 - `SESSION_COOKIE_SECURE`
 - `SESSION_COOKIE_DOMAIN`
 - `ASAAS_API_KEY`
@@ -78,8 +80,14 @@ Para producao com subdominios, use:
 
 - `DATABASE_URL="file:./data.db"` se a VPS continuar em SQLite
 - `APP_URL="https://hydra-ai.shop"`
+- `API_APP_URL="https://api.hydra-ai.shop"`
+- `CLI_APP_URL="https://cli.hydra-ai.shop"`
 - `SESSION_COOKIE_SECURE="true"`
 - `SESSION_COOKIE_DOMAIN=".hydra-ai.shop"`
+
+`APP_URL` continua sendo a URL canonica do site principal. Os callbacks de compra do API Panel e do CLI Panel podem usar `API_APP_URL` e `CLI_APP_URL` para evitar conflito entre superficies.
+
+`SESSION_COOKIE_SECURE` e `SESSION_COOKIE_DOMAIN` continuam globais, porque a sessao precisa ser compartilhada entre os subdominios.
 
 Video usa PIAPI com `sora2-pro-video`, resolucao fixa em `720p` e duracao limitada a `10` segundos.
 
