@@ -5,12 +5,13 @@ import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
 import { prisma } from "@/lib/db";
 import { groqChat, groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
 import { stabilityGenerateImage } from "@/lib/providers/stability";
-import { getPiapiFriendlyError, isPiapiAuthError, isPiapiCreditError, isPiapiRateLimitError, piapiCreateVideo } from "@/lib/providers/piapi";
 import { buildMediaMessage, parseMediaMessage } from "@/lib/media";
 import { generateSpeechAudio } from "@/lib/providers/speech";
 import { tavilySearch } from "@/lib/providers/tavily";
 import { buildOpsMemoryEntry, findRelevantMemories, getUserAgentContext, saveAgentMemory } from "@/lib/agent-memory";
 import { getOpsPlaybookContext, isOpsQuery, shouldUseWebResearch } from "@/lib/ops-playbook";
+
+const VIDEO_SUSPENDED_MESSAGE = "A geração de vídeo está temporariamente suspensa para atualização da infraestrutura. Assim que o recurso voltar com estabilidade e créditos dedicados, ele será reativado.";
 
 const schema = z.object({
   message: z.string().min(1),
@@ -266,31 +267,10 @@ export async function POST(req: NextRequest) {
     let convId: string;
 
     if (isVideoRequest(message)) {
-      const videoQuota = await canUse(user, "video", monthKey);
-      if (!videoQuota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
-      if (!process.env.PIAPI_API_KEY) throw new ApiError("PIAPI_API_KEY ausente", 500);
-
       const { visualPrompt, speechText, displayPrompt } = prepareVideoPrompt(message);
-      try {
-        const translatedPrompt = await normalizeVisualPrompt(visualPrompt);
-        const video = await piapiCreateVideo(translatedPrompt, "16:9", 6, speechText);
-        await incrementUsage(user.id, "video", monthKey);
-
-        reply = buildMediaMessage({
-          kind: "video",
-          prompt: displayPrompt,
-          url: video.url,
-          aspectRatio: video.ratio,
-          duration: video.duration,
-          taskId: video.taskId,
-          provider: video.provider,
-          model: video.model,
-        });
-      } catch (error) {
-        const messageText = error instanceof Error ? error.message : "";
-        if (!/402|429/.test(messageText) && !messageText.includes("PIAPI_API_KEY ausente") && !isPiapiCreditError(error) && !isPiapiAuthError(error) && !isPiapiRateLimitError(error)) throw error;
-        reply = buildMediaUnavailableReply("video");
-      }
+      void visualPrompt;
+      void speechText;
+      reply = VIDEO_SUSPENDED_MESSAGE;
 
       convId = await ensureConversation(user.id, conversationId, displayPrompt);
     } else if (isAudioRequest(message)) {
@@ -379,8 +359,6 @@ export async function POST(req: NextRequest) {
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
-        : isPiapiCreditError(err) || isPiapiAuthError(err) || isPiapiRateLimitError(err)
-          ? getPiapiFriendlyError(err)
         : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }

@@ -33,7 +33,9 @@ import type { CSSProperties, ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
-import { getMessagePreview, isEncodedMediaMessage, parseMediaMessage, type AudioMessagePayload, type VideoMessagePayload } from "@/lib/media";
+import { getMessagePreview, isEncodedMediaMessage, parseMediaMessage } from "@/lib/media";
+
+const VIDEO_MAINTENANCE_MESSAGE = "Vídeo está temporariamente em atualização. Esta área agora mostra apenas as imagens geradas, com foco em organização e acesso rápido.";
 
 type ThemePreset = {
   id: string;
@@ -263,18 +265,6 @@ export default function DashboardPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const settingsHydratedRef = useRef(false);
   const saveSettingsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const { recentAudios, recentVideos } = useMemo(() => {
-    const payloads = messages
-      .filter((msg) => msg.role === "assistant")
-      .map((msg) => parseMediaMessage(msg.content))
-      .filter((payload): payload is AudioMessagePayload | VideoMessagePayload => !!payload && payload.kind !== "image");
-
-    return {
-      recentAudios: payloads.filter((payload): payload is AudioMessagePayload => payload.kind === "audio"),
-      recentVideos: payloads.filter((payload): payload is VideoMessagePayload => payload.kind === "video"),
-    };
-  }, [messages]);
 
   const surfaceStyle = useMemo(
     () => ({ "--accent-from": theme.accentFrom, "--accent-to": theme.accentTo } as CSSProperties),
@@ -1070,7 +1060,7 @@ export default function DashboardPage() {
                       <Sparkles className="h-4 w-4 text-amber-300" />
                       <div>
                         <p className="font-semibold text-white">Pergunte algo como:</p>
-                        <p className="text-xs text-slate-300">"gere uma imagem de uma flor cyberpunk", "crie um áudio falando olá mundo" ou "gere um vídeo de chuva neon"</p>
+                        <p className="text-xs text-slate-300">"gere uma imagem de uma flor cyberpunk", "crie um áudio falando olá mundo" ou "explique este tema como um especialista"</p>
                       </div>
                     </div>
                   )}
@@ -1205,84 +1195,107 @@ export default function DashboardPage() {
           )}
 
           {selected === "gallery" && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card title="Galeria de imagens" icon={ImageIcon} theme={theme}>
-                <p className="text-sm text-slate-200">Guarde e baixe tudo que o bot cria. Biblioteca pessoal com acesso rápido.</p>
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {galleryLoading && <p className="text-xs text-slate-300">Carregando imagens...</p>}
-                  {galleryError && <p className="text-xs text-amber-200">{galleryError}</p>}
-                  {!galleryLoading && galleryItems.length === 0 && !galleryError && (
-                    <p className="text-xs text-slate-300">Nenhuma imagem gerada ainda. Peça no chat algo como "gere uma imagem de uma flor negra".</p>
-                  )}
-                  {galleryItems.map((item) => (
-                    <div key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                      <div className="h-24 bg-cover bg-center" style={{ backgroundImage: `url(${item.url})` }} />
-                      <div className="flex items-center justify-between px-3 py-2 text-xs">
-                        <span className="text-slate-100">{item.title}</span>
-                        <button onClick={() => downloadAsset(item.url, "hydra-image.png")} className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-white">
-                          <Download className="h-3.5 w-3.5" />
-                          Baixar
-                        </button>
+            <motion.section
+              whileHover={{ y: -3 }}
+              className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-2xl backdrop-blur-sm"
+              style={surfaceStyle}
+            >
+              <div className="border-b border-white/10 px-5 py-5 sm:px-6 sm:py-6 lg:px-8">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div className="max-w-3xl">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/10">
+                        <ImageIcon className="h-5 w-5 text-cyan-200" />
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.28em] text-slate-400">Biblioteca visual</p>
+                        <h2 className="text-2xl font-semibold text-white sm:text-3xl">Galeria de imagens</h2>
+                      </div>
+                    </div>
+                    <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-200 sm:text-base">
+                      Painel dedicado somente ao que foi gerado em imagem. Tudo fica mais amplo, melhor alinhado e pronto para abrir ou baixar sem ruído de outros formatos.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge label="Text-to-Image" color={theme.accentFrom} />
+                    <Badge label="Biblioteca pessoal" color={theme.accentTo} />
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">
+                      {galleryItems.length} {galleryItems.length === 1 ? "imagem" : "imagens"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+                  {VIDEO_MAINTENANCE_MESSAGE}
+                </div>
+              </div>
+
+              <div className="px-5 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+                {galleryLoading && <p className="text-sm text-slate-300">Carregando imagens...</p>}
+                {galleryError && <p className="text-sm text-amber-200">{galleryError}</p>}
+                {!galleryLoading && galleryItems.length === 0 && !galleryError && (
+                  <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-dashed border-white/10 bg-black/20 px-6 py-10 text-center">
+                    <div className="max-w-md">
+                      <p className="text-lg font-semibold text-white">Nenhuma imagem gerada ainda</p>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                        Peça no chat algo como "gere uma imagem de uma flor negra cinematográfica" para começar a preencher sua biblioteca visual.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!galleryLoading && galleryItems.length > 0 && (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                    {galleryItems.map((item) => (
+                      <motion.div
+                        key={item.id}
+                        whileHover={{ y: -4 }}
+                        className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/20"
+                      >
                         <button
                           onClick={() => setMediaViewer({ kind: "image", url: item.url, title: item.title || "Imagem gerada" })}
-                          className="flex items-center gap-1 rounded-full border border-white/20 px-2 py-1 text-white hover:bg-white/10"
+                          className="block w-full text-left"
                         >
-                          Abrir
+                          <div className="aspect-[4/3] overflow-hidden bg-black/30">
+                            <img
+                              src={item.url}
+                              alt={item.title || "Imagem gerada"}
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                            />
+                          </div>
                         </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex gap-2 text-xs text-slate-200">
-                  <Badge label="Text-to-Image" color={theme.accentFrom} />
-                  <Badge label="Inpainting" color={theme.accentTo} />
-                </div>
-              </Card>
 
-              <Card title="Áudios gerados" icon={Mic} theme={theme}>
-                <p className="text-sm text-slate-200">Ouça e baixe os áudios criados na conversa atual.</p>
-                <div className="mt-3 space-y-3">
-                  {recentAudios.length === 0 && <p className="text-xs text-slate-300">Ainda não há áudios nesta conversa. Peça no chat para criar um áudio.</p>}
-                  {recentAudios.map((item, index) => (
-                    <div key={`${item.audioUrl}-${index}-${item.text.slice(0, 16)}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-sm font-semibold text-white">Áudio gerado</p>
-                      <p className="mt-1 text-xs text-slate-300">{item.text}</p>
-                      <audio controls className="mt-3 w-full" src={item.audioUrl} preload="metadata" />
-                      <button onClick={() => downloadAsset(item.audioUrl, "hydra-audio.mp3")} className="mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
-                        <Download className="h-3.5 w-3.5" />
-                        Baixar áudio
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+                        <div className="space-y-3 px-4 py-4">
+                          <div className="space-y-1">
+                            <p className="line-clamp-2 text-sm font-semibold text-white">{item.title || "Imagem gerada"}</p>
+                            <p className="text-xs text-slate-400">
+                              {new Date(item.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
 
-              <Card title="Vídeos gerados" icon={PlayCircle} theme={theme}>
-                <p className="text-sm text-slate-200">Assista e baixe os vídeos criados na conversa atual.</p>
-                <div className="mt-3 space-y-3">
-                  {recentVideos.length === 0 && <p className="text-xs text-slate-300">Ainda não há vídeos nesta conversa. Peça no chat para gerar um vídeo.</p>}
-                  {recentVideos.map((item, index) => (
-                    <div key={`${item.taskId || item.url}-${index}`} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-sm font-semibold text-white">Vídeo gerado</p>
-                      <p className="mt-1 text-xs text-slate-300">{item.prompt}</p>
-                      <video controls playsInline className="mt-3 max-h-56 w-full rounded-2xl bg-black/40" src={item.url} preload="metadata" />
-                      <div className="mt-3 flex gap-2">
-                        <button onClick={() => downloadAsset(item.url, "hydra-video.mp4")} className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/15">
-                          <Download className="h-3.5 w-3.5" />
-                          Baixar vídeo
-                        </button>
-                        <button
-                          onClick={() => setMediaViewer({ kind: "video", url: item.url, title: "Vídeo gerado", subtitle: item.prompt })}
-                          className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
-                        >
-                          Abrir
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setMediaViewer({ kind: "image", url: item.url, title: item.title || "Imagem gerada" })}
+                              className="rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/10"
+                            >
+                              Abrir
+                            </button>
+                            <button
+                              onClick={() => downloadAsset(item.url, "hydra-image.png")}
+                              className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white/15"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Baixar
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.section>
           )}
 
           {mediaViewer && (

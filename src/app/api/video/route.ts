@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCountry, requireUser, enforceRulesOrBlock, ApiError } from "@/lib/api-guard";
-import { currentMonthKey, canUse, incrementUsage } from "@/lib/usage";
-import { getPiapiFriendlyError, isPiapiAuthError, isPiapiCreditError, isPiapiRateLimitError, piapiCreateVideo } from "@/lib/providers/piapi";
-import { groqTranslateToEnglishPrompt } from "@/lib/providers/groq";
+const VIDEO_SUSPENDED_MESSAGE = "A geração de vídeo está temporariamente suspensa para atualização da infraestrutura. Assim que o recurso voltar com estabilidade e créditos dedicados, ele será reativado.";
 
 const schema = z.object({
   prompt: z.string().min(5),
@@ -47,34 +45,15 @@ function prepareVideoPrompt(prompt: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, aspectRatio, duration } = schema.parse(body);
+    const { prompt } = schema.parse(body);
 
     const user = await requireUser(req);
     const country = await requireCountry(req);
     await enforceRulesOrBlock({ text: prompt, userId: user.id, country });
-
-    const monthKey = currentMonthKey();
-    const quota = await canUse(user, "video", monthKey);
-    if (!quota.allowed) throw new ApiError("Limite de vídeo atingido para seu plano", 403);
-
-    const prepared = prepareVideoPrompt(prompt);
-
-    const translatedPrompt = process.env.GROQ_API_KEY
-      ? await groqTranslateToEnglishPrompt(prepared.visualPrompt).catch(() => prepared.visualPrompt)
-      : prepared.visualPrompt;
-
-    const result = await piapiCreateVideo(translatedPrompt, aspectRatio || "16:9", duration || 6, prepared.speechText);
-    await incrementUsage(user.id, "video", monthKey);
-
-    return NextResponse.json({ video: result });
+    return NextResponse.json({ error: VIDEO_SUSPENDED_MESSAGE }, { status: 503 });
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro ao gerar vídeo";
-    const friendly = status === 402
-      ? "O provider de vídeo recusou a cobrança desta requisição. Revise os créditos da PIAPI."
-      : isPiapiCreditError(err) || isPiapiAuthError(err) || isPiapiRateLimitError(err)
-        ? getPiapiFriendlyError(err)
-      : message;
-    return NextResponse.json({ error: friendly, raw: message }, { status });
+    return NextResponse.json({ error: message, raw: message }, { status });
   }
 }
