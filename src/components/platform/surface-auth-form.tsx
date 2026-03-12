@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck, User2 } from "lucide-react";
@@ -27,8 +27,8 @@ const surfaceConfig = {
       "Métricas operacionais, latência e erros por recurso.",
     ],
     switchHref: {
-      login: "/api-panel/login",
-      register: "/api-panel/register",
+      login: "/login",
+      register: "/register",
     },
   },
   cli: {
@@ -47,8 +47,8 @@ const surfaceConfig = {
       "Releases estáveis para Linux, Windows e macOS.",
     ],
     switchHref: {
-      login: "/cli-panel/login",
-      register: "/cli-panel/register",
+      login: "/login",
+      register: "/register",
     },
   },
 } as const;
@@ -58,6 +58,15 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
   const config = surfaceConfig[surface];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [otherSurfaceUrl, setOtherSurfaceUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const h = window.location.hostname;
+    const target = surface === "api" ? h.replace(/^api\./, "cli.") : h.replace(/^cli\./, "api.");
+    if (target !== h) {
+      setOtherSurfaceUrl(`${window.location.protocol}//${target}`);
+    }
+  }, [surface]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -103,9 +112,11 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
             <div className={`rounded-full border px-3 py-1 text-xs uppercase tracking-[0.26em] ${config.accentBorder} ${config.accentText}`}>
               {config.badge}
             </div>
-            <Link href={surface === "api" ? "/cli-panel" : "/api-panel"} className="text-sm text-slate-300 underline-offset-4 hover:underline">
-              Ver outra superfície
-            </Link>
+            {otherSurfaceUrl && (
+              <a href={otherSurfaceUrl} className="text-sm text-slate-300 underline-offset-4 hover:underline">
+                Ver outra superfície
+              </a>
+            )}
           </div>
 
           <h1 className="mt-6 text-4xl font-semibold leading-tight sm:text-5xl">{config.title}</h1>
