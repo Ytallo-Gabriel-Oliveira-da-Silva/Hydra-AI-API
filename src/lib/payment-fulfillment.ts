@@ -4,9 +4,21 @@ import { prisma } from "@/lib/db";
 import { getCliLicenseTier } from "@/lib/billing-products";
 import { getNextAccessEndForPlan } from "@/lib/plans";
 
-type TransactionWithRelations = Awaited<ReturnType<typeof prisma.paymentTransaction.findFirst>> & {
-  user?: { currentPeriodEndsAt: Date | null } | null;
-  plan?: { slug: string } | null;
+type TransactionWithRelations = {
+  id: string;
+  userId: string;
+  planId: string | null;
+  productType: string;
+  productRef: string | null;
+  displayName: string | null;
+  paymentMethod: string;
+  amount: number;
+  creditsGranted: number;
+  currency: string;
+  status: string;
+  metadata: string | null;
+  user: { currentPeriodEndsAt: Date | null } | null;
+  plan: { slug: string } | null;
 };
 
 function parseMetadata(metadata?: string | null) {

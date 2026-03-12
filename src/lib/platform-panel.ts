@@ -5,6 +5,20 @@ import { prisma } from "@/lib/db";
 
 const API_KEY_PREFIX_LENGTH = 18;
 
+type PaymentWithPlan = {
+  id: string;
+  amount: number;
+  status: string;
+  paymentMethod: string;
+  createdAt: Date;
+  displayName: string | null;
+  productRef: string | null;
+  plan: {
+    name: string;
+    slug: string;
+  } | null;
+};
+
 function hashSecret(secret: string) {
   return createHash("sha256").update(secret).digest("hex");
 }
@@ -59,7 +73,7 @@ export async function getApiPanelOverview(userId: string) {
       },
       orderBy: { createdAt: "desc" },
       take: 8,
-    }),
+    }) as unknown as Promise<PaymentWithPlan[]>,
     prisma.quotaUsage.findMany({
       where: {
         userId,
