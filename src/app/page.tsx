@@ -14,7 +14,7 @@ export const metadata = createMetadata({
     "Hydra API",
     "Hydra Cyber",
     "api.hydra-ai.shop",
-    "cli.hydra-ai.shop",
+    "cyber.hydra-ai.shop",
     "chat multimodal",
     "IA com audio e video",
     "login hydra ai",

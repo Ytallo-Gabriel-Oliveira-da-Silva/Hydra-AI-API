@@ -13,7 +13,7 @@ export function getSurfaceAppUrl(surface: AppSurface) {
   }
 
   if (surface === "cli") {
-    return readEnvUrl("CLI_APP_URL") || readEnvUrl("APP_URL");
+    return readEnvUrl("CYBER_APP_URL") || readEnvUrl("APP_URL");
   }
 
   return readEnvUrl("APP_URL");

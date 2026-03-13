@@ -3,17 +3,21 @@ import { headers } from "next/headers";
 
 const publicPlanSlugs = ["free", "plus", "pro", "annual"];
 
+function normalizeHost(value: string) {
+  return value.split(",")[0].trim().split(":")[0].toLowerCase();
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const headersList = await headers();
-  const host = headersList.get("host") || "";
+  const host = normalizeHost(headersList.get("x-forwarded-host") || headersList.get("host") || "");
 
   const mainUrl = process.env.APP_URL || "http://localhost:3000";
   const apiUrl = process.env.API_APP_URL || "https://api.hydra-ai.shop";
-  const cliUrl = process.env.CLI_APP_URL || "https://cli.hydra-ai.shop";
+  const cyberUrl = process.env.CYBER_APP_URL || "https://cyber.hydra-ai.shop";
 
   // Detect which domain is being accessed
   const isApiDomain = host.includes("api.");
-  const isCliDomain = host.includes("cli.");
+  const isCyberDomain = host.includes("cyber.");
 
   // API subdomain sitemap
   if (isApiDomain) {
@@ -26,11 +30,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   }
 
-  // CLI subdomain sitemap
-  if (isCliDomain) {
-    const cliRoutes = ["", "/login", "/register"];
-    return cliRoutes.map((route) => ({
-      url: `${cliUrl}${route}`,
+  // Cyber subdomain sitemap
+  if (isCyberDomain) {
+    const cyberRoutes = ["", "/login", "/register"];
+    return cyberRoutes.map((route) => ({
+      url: `${cyberUrl}${route}`,
       lastModified: new Date(),
       changeFrequency: route === "" ? "weekly" : "monthly",
       priority: route === "" ? 0.9 : 0.75,

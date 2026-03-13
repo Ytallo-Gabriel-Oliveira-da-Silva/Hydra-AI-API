@@ -4,7 +4,7 @@ Este guia assume uma unica aplicacao Next.js publicada em VPS, atendendo:
 
 - `hydra-ai.shop`
 - `api.hydra-ai.shop`
-- `cli.hydra-ai.shop`
+- `cyber.hydra-ai.shop`
 
 ## Variaveis de ambiente
 
@@ -15,7 +15,8 @@ DATABASE_URL="file:./data.db"
 NODE_ENV="production"
 APP_URL="https://hydra-ai.shop"
 API_APP_URL="https://api.hydra-ai.shop"
-CLI_APP_URL="https://cli.hydra-ai.shop"
+CYBER_APP_URL="https://cyber.hydra-ai.shop"
+CLI_APP_URL="https://cyber.hydra-ai.shop"
 SESSION_COOKIE_SECURE="true"
 SESSION_COOKIE_DOMAIN=".hydra-ai.shop"
 ASAAS_API_KEY="..."
@@ -23,7 +24,7 @@ ASAAS_ENVIRONMENT="production"
 ASAAS_WEBHOOK_TOKEN="..."
 ```
 
-`APP_URL` fica reservado para a superficie principal. `API_APP_URL` e `CLI_APP_URL` devem ser usados para os retornos de compra de cada painel.
+`APP_URL` fica reservado para a superficie principal. `API_APP_URL` e `CYBER_APP_URL` devem ser usados para os retornos de compra de cada painel. `CLI_APP_URL` pode ser mantido apenas como fallback de compatibilidade.
 
 `SESSION_COOKIE_DOMAIN=".hydra-ai.shop"` e o ponto critico para compartilhar login entre a landing, o API Panel e o CLI Panel.
 
@@ -33,7 +34,7 @@ Crie registros `A` ou `CNAME` para os tres hosts apontando para a mesma VPS:
 
 - `hydra-ai.shop`
 - `api.hydra-ai.shop`
-- `cli.hydra-ai.shop`
+- `cyber.hydra-ai.shop`
 
 ## Nginx
 
@@ -41,7 +42,7 @@ Exemplo de server block unico:
 
 ```nginx
 server {
-    server_name hydra-ai.shop api.hydra-ai.shop cli.hydra-ai.shop;
+    server_name hydra-ai.shop api.hydra-ai.shop cyber.hydra-ai.shop;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -63,7 +64,7 @@ Com isso, a aplicacao consegue distinguir o host atual e redirecionar a raiz do 
 Depois de validar o proxy, emita certificado para os tres dominos com Certbot:
 
 ```bash
-sudo certbot --nginx -d hydra-ai.shop -d api.hydra-ai.shop -d cli.hydra-ai.shop
+sudo certbot --nginx -d hydra-ai.shop -d api.hydra-ai.shop -d cyber.hydra-ai.shop
 ```
 
 ## Banco e seed

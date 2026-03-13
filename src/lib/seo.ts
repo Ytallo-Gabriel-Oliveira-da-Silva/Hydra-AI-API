@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 const fallbackUrl = "http://localhost:3000";
 const fallbackApiUrl = "https://api.hydra-ai.shop";
-const fallbackCliUrl = "https://cli.hydra-ai.shop";
+const fallbackCyberUrl = "https://cyber.hydra-ai.shop";
 
 export const siteConfig = {
   name: "HYDRA AI",
@@ -17,7 +17,7 @@ export const siteConfig = {
 export const surfaceConfig = {
   mainUrl: process.env.APP_URL || fallbackUrl,
   apiUrl: process.env.API_APP_URL || fallbackApiUrl,
-  cliUrl: process.env.CLI_APP_URL || fallbackCliUrl,
+  cyberUrl: process.env.CYBER_APP_URL || fallbackCyberUrl,
 };
 
 export function absoluteUrl(path = "/") {
@@ -104,7 +104,7 @@ export const websiteStructuredData = {
     {
       "@type": "WebSite",
       name: "Hydra Cyber",
-      url: surfaceConfig.cliUrl,
+      url: surfaceConfig.cyberUrl,
       description: "Superfície dedicada para licença, desktop instalado, dispositivos, releases e operação Hydra Cyber.",
     },
   ],
@@ -131,7 +131,7 @@ export const organizationStructuredData = {
       url: absoluteUrl("/support"),
     },
   ],
-  sameAs: [surfaceConfig.mainUrl, surfaceConfig.apiUrl, surfaceConfig.cliUrl],
+  sameAs: [surfaceConfig.mainUrl, surfaceConfig.apiUrl, surfaceConfig.cyberUrl],
 };
 
 export function createSiteNavigationStructuredData(

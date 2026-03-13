@@ -8,7 +8,7 @@ Organize the current HYDRA AI codebase so the main app, Hydra API Panel and Hydr
 
 - `hydra-ai.shop`: main multimodal workspace and account area
 - `api.hydra-ai.shop`: Hydra API Panel
-- `cli.hydra-ai.shop`: Hydra CLI Panel
+- `cyber.hydra-ai.shop`: Hydra Cyber Panel
 
 ## Shared foundations
 

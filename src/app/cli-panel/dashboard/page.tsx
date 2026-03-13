@@ -7,7 +7,7 @@ export const metadata = createMetadata({
   title: "Dashboard Hydra Cyber",
   description: "Dashboard privado do Hydra Cyber com licenças, compliance, pagamentos, releases, dispositivos, conta e segurança.",
   path: "/dashboard",
-  canonicalBaseUrl: process.env.CLI_APP_URL,
+  canonicalBaseUrl: process.env.CYBER_APP_URL,
   keywords: ["dashboard hydra cyber", "licença hydra cyber", "releases hydra cyber"],
   robots: { index: false, follow: false },
 });

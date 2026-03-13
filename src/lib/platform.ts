@@ -60,7 +60,7 @@ export const platformSurfaces: PlatformSurface[] = [
   {
     id: "cli",
     name: "Hydra Cyber",
-    domain: "cli.hydra-ai.shop",
+    domain: "cyber.hydra-ai.shop",
     headline: "Painel de licenca, compliance, downloads, ativacoes, releases e consumo do desktop profissional.",
     summary: "A licenca libera o Hydra Cyber e os creditos financiam o consumo real da IA, labs e recursos cloud dentro do app.",
   },
@@ -177,7 +177,7 @@ export const sharedPlatformPrinciples: PlatformModule[] = [
   },
   {
     title: "Subdominios dedicados",
-    summary: "O mesmo ecossistema sera dividido entre hydra-ai.shop, api.hydra-ai.shop e cli.hydra-ai.shop.",
+    summary: "O mesmo ecossistema sera dividido entre hydra-ai.shop, api.hydra-ai.shop e cyber.hydra-ai.shop.",
     icon: LineChart,
   },
   {

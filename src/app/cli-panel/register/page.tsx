@@ -5,7 +5,7 @@ export const metadata = createMetadata({
   title: "Cadastro Hydra Cyber",
   description: "Cadastro dedicado para o Hydra Cyber com foco em licença, downloads, desktop instalado e operação profissional.",
   path: "/register",
-  canonicalBaseUrl: process.env.CLI_APP_URL,
+  canonicalBaseUrl: process.env.CYBER_APP_URL,
   keywords: ["cadastro hydra cyber", "register hydra cyber"],
 });
 

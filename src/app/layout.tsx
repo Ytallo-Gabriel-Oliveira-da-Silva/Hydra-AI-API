@@ -20,7 +20,7 @@ const mainNavigationStructuredData = createSiteNavigationStructuredData("HYDRA A
   { name: "Planos", url: `${surfaceConfig.mainUrl}/plans` },
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
   { name: "Hydra API", url: surfaceConfig.apiUrl },
-  { name: "Hydra Cyber", url: surfaceConfig.cliUrl },
+  { name: "Hydra Cyber", url: surfaceConfig.cyberUrl },
 ]);
 
 const apiNavigationStructuredData = createSiteNavigationStructuredData("Hydra API", [
@@ -31,11 +31,11 @@ const apiNavigationStructuredData = createSiteNavigationStructuredData("Hydra AP
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
 ]);
 
-const cliNavigationStructuredData = createSiteNavigationStructuredData("Hydra Cyber", [
-  { name: "Hydra Cyber Home", url: surfaceConfig.cliUrl },
-  { name: "Login Hydra Cyber", url: `${surfaceConfig.cliUrl}/login` },
-  { name: "Cadastro Hydra Cyber", url: `${surfaceConfig.cliUrl}/register` },
-  { name: "Dashboard Hydra Cyber", url: `${surfaceConfig.cliUrl}/dashboard` },
+const cyberNavigationStructuredData = createSiteNavigationStructuredData("Hydra Cyber", [
+  { name: "Hydra Cyber Home", url: surfaceConfig.cyberUrl },
+  { name: "Login Hydra Cyber", url: `${surfaceConfig.cyberUrl}/login` },
+  { name: "Cadastro Hydra Cyber", url: `${surfaceConfig.cyberUrl}/register` },
+  { name: "Dashboard Hydra Cyber", url: `${surfaceConfig.cyberUrl}/dashboard` },
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
 ]);
 
@@ -139,7 +139,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(cliNavigationStructuredData) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(cyberNavigationStructuredData) }}
         />
       </head>
       <body

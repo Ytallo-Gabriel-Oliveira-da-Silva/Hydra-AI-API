@@ -19,15 +19,15 @@ export const metadata = createMetadata({
   title: "Hydra Cyber",
   description: "Landing oficial do Hydra Cyber com identidade própria para licença, desktop instalado, downloads, dispositivos e operação ética.",
   path: "/",
-  canonicalBaseUrl: process.env.CLI_APP_URL,
-  keywords: ["Hydra Cyber", "cli.hydra-ai.shop", "software desktop profissional", "licença hydra cyber", "downloads e releases", "login hydra cyber", "cadastro hydra cyber"],
+  canonicalBaseUrl: process.env.CYBER_APP_URL,
+  keywords: ["Hydra Cyber", "cyber.hydra-ai.shop", "software desktop profissional", "licença hydra cyber", "downloads e releases", "login hydra cyber", "cadastro hydra cyber"],
 });
 
 export default async function CliPanelPage() {
   const breadcrumbStructuredData = createBreadcrumbStructuredData([
     { name: "Inicio", path: "/" },
     { name: "Hydra Cyber", path: "/" },
-  ], surfaceConfig.cliUrl);
+  ], surfaceConfig.cyberUrl);
   const releases = await prisma.cliRelease.findMany({
     orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
     take: 6,
@@ -64,9 +64,9 @@ export default async function CliPanelPage() {
           "Dashboard com foco em licenças, releases, downloads, conta, billing e segurança.",
           "Assinatura visual diferente da Hydra API e da HYDRA principal.",
         ]}
-        primaryHref={`${surfaceConfig.cliUrl}/login`}
-        secondaryHref={`${surfaceConfig.cliUrl}/register`}
-        dashboardHref={`${surfaceConfig.cliUrl}/dashboard`}
+        primaryHref={`${surfaceConfig.cyberUrl}/login`}
+        secondaryHref={`${surfaceConfig.cyberUrl}/register`}
+        dashboardHref={`${surfaceConfig.cyberUrl}/dashboard`}
       />
       <section className="mx-auto mt-8 max-w-7xl rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
