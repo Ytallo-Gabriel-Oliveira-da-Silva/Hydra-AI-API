@@ -73,7 +73,7 @@ const surfaceShortcuts = [
   },
   {
     id: "cli-surface",
-    label: "Ir para Hydra CLI",
+    label: "Ir para Hydra Cyber",
     href: process.env.NEXT_PUBLIC_CLI_APP_URL || "https://cli.hydra-ai.shop",
     icon: KeyRound,
   },

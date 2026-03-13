@@ -167,7 +167,7 @@ export const cliPanelRoadmap = [
 export const sharedPlatformPrinciples: PlatformModule[] = [
   {
     title: "Banco compartilhado",
-    summary: "API Panel e CLI Panel devem reutilizar users, sessions, plans, payments e configuracoes do app atual.",
+    summary: "Hydra API e Hydra Cyber devem reutilizar users, sessions, plans, payments e configuracoes do app atual.",
     icon: Cable,
   },
   {

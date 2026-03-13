@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck, User2 } from "lucide-react";
 
 type SurfaceAuthFormProps = {
@@ -55,6 +55,7 @@ const surfaceConfig = {
 
 export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const config = surfaceConfig[surface];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -71,6 +72,10 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const surfacePrefix = pathname?.startsWith(`/${surface}-panel`) ? `/${surface}-panel` : "";
+  const dashboardPath = `${surfacePrefix}/dashboard`;
+  const loginPath = `${surfacePrefix}/login`;
+  const registerPath = `${surfacePrefix}/register`;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -93,7 +98,7 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
         throw new Error(data.error || "Falha ao autenticar");
       }
 
-      router.push("/dashboard");
+      router.push(dashboardPath);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado ao autenticar");
@@ -225,7 +230,7 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
           <div className="mt-6 space-y-3 text-sm text-slate-300">
             <p>
               {isLogin ? "Ainda não tem conta? " : "Já tem uma conta? "}
-              <Link href={isLogin ? config.switchHref.register : config.switchHref.login} className={config.accentText + " underline underline-offset-4"}>
+              <Link href={isLogin ? registerPath : loginPath} className={config.accentText + " underline underline-offset-4"}>
                 {isLogin ? "Criar cadastro" : "Entrar"}
               </Link>
             </p>

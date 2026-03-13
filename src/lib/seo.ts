@@ -103,9 +103,9 @@ export const websiteStructuredData = {
     },
     {
       "@type": "WebSite",
-      name: "Hydra CLI",
+      name: "Hydra Cyber",
       url: surfaceConfig.cliUrl,
-      description: "Superfície dedicada para licenças, dispositivos, releases e operação CLI.",
+      description: "Superfície dedicada para licença, desktop instalado, dispositivos, releases e operação Hydra Cyber.",
     },
   ],
   publisher: {

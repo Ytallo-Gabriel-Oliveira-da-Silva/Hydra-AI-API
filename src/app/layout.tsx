@@ -20,7 +20,7 @@ const mainNavigationStructuredData = createSiteNavigationStructuredData("HYDRA A
   { name: "Planos", url: `${surfaceConfig.mainUrl}/plans` },
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
   { name: "Hydra API", url: surfaceConfig.apiUrl },
-  { name: "Hydra CLI", url: surfaceConfig.cliUrl },
+  { name: "Hydra Cyber", url: surfaceConfig.cliUrl },
 ]);
 
 const apiNavigationStructuredData = createSiteNavigationStructuredData("Hydra API", [
@@ -31,11 +31,11 @@ const apiNavigationStructuredData = createSiteNavigationStructuredData("Hydra AP
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
 ]);
 
-const cliNavigationStructuredData = createSiteNavigationStructuredData("Hydra CLI", [
-  { name: "Hydra CLI Home", url: surfaceConfig.cliUrl },
-  { name: "Login CLI", url: `${surfaceConfig.cliUrl}/login` },
-  { name: "Cadastro CLI", url: `${surfaceConfig.cliUrl}/register` },
-  { name: "Dashboard CLI", url: `${surfaceConfig.cliUrl}/dashboard` },
+const cliNavigationStructuredData = createSiteNavigationStructuredData("Hydra Cyber", [
+  { name: "Hydra Cyber Home", url: surfaceConfig.cliUrl },
+  { name: "Login Hydra Cyber", url: `${surfaceConfig.cliUrl}/login` },
+  { name: "Cadastro Hydra Cyber", url: `${surfaceConfig.cliUrl}/register` },
+  { name: "Dashboard Hydra Cyber", url: `${surfaceConfig.cliUrl}/dashboard` },
   { name: "Suporte", url: `${surfaceConfig.mainUrl}/support` },
 ]);
 

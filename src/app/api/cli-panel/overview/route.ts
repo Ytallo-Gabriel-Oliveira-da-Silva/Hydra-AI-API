@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(overview);
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
-    const message = err instanceof Error ? err.message : "Erro ao carregar Hydra CLI Panel";
+    const message = err instanceof Error ? err.message : "Erro ao carregar Hydra Cyber Panel";
     return NextResponse.json({ error: message }, { status });
   }
 }

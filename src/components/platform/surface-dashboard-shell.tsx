@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Activity, ArrowRight, Bell, CreditCard, Download, FileKey2, KeyRound, Laptop2, LogOut, Settings2, ShieldCheck, User2, Wallet } from "lucide-react";
 
 type MenuItem = {
@@ -47,15 +47,18 @@ const iconMap = {
 
 export function SurfaceDashboardShell({ surfaceLabel, title, description, accentClass, chipClass, menuItems, quickNotes, children }: SurfaceDashboardShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [account, setAccount] = useState<AuthMe | null>(null);
   const [loading, setLoading] = useState(true);
+  const surfacePrefix = pathname?.startsWith("/cli-panel") ? "/cli-panel" : pathname?.startsWith("/api-panel") ? "/api-panel" : "";
+  const loginPath = `${surfacePrefix}/login`;
 
   useEffect(() => {
     async function loadAccount() {
       try {
         const response = await fetch("/api/auth/me", { credentials: "include" });
         if (response.status === 401) {
-          router.replace("/login");
+          router.replace(loginPath);
           return;
         }
 
@@ -63,18 +66,18 @@ export function SurfaceDashboardShell({ surfaceLabel, title, description, accent
         if (!response.ok) throw new Error(data.error || "Erro ao carregar conta");
         setAccount(data as AuthMe);
       } catch {
-        router.replace("/login");
+        router.replace(loginPath);
       } finally {
         setLoading(false);
       }
     }
 
     void loadAccount();
-  }, [router]);
+  }, [loginPath, router]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => null);
-    router.push("/login");
+    router.push(loginPath);
     router.refresh();
   }
 
