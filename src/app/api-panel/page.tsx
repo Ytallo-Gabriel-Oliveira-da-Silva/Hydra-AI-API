@@ -1,4 +1,4 @@
-import { createBreadcrumbStructuredData, createMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData, createMetadata, surfaceConfig } from "@/lib/seo";
 import { apiPanelMetrics, apiPanelModules, platformSurfaces } from "@/lib/platform";
 import { SurfaceLanding } from "@/components/platform/surface-landing";
 import { Activity, FileKey2, Wallet } from "lucide-react";
@@ -14,8 +14,8 @@ export const metadata = createMetadata({
 export default function ApiPanelPage() {
   const breadcrumbStructuredData = createBreadcrumbStructuredData([
     { name: "Inicio", path: "/" },
-    { name: "Hydra API Panel", path: "/api-panel" },
-  ]);
+    { name: "Hydra API", path: "/" },
+  ], surfaceConfig.apiUrl);
 
   const surface = platformSurfaces.find((item) => item.id === "api");
   if (!surface) return null;
@@ -48,9 +48,9 @@ export default function ApiPanelPage() {
           "Dashboard focado em métricas, chave, recarga, observabilidade e conta.",
           "Marca registrada da Hydra API logo na primeira dobra da página.",
         ]}
-        primaryHref="/api-panel/login"
-        secondaryHref="/api-panel/register"
-        dashboardHref="/api-panel/dashboard"
+        primaryHref={`${surfaceConfig.apiUrl}/login`}
+        secondaryHref={`${surfaceConfig.apiUrl}/register`}
+        dashboardHref={`${surfaceConfig.apiUrl}/dashboard`}
       />
     </>
   );

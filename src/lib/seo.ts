@@ -153,6 +153,7 @@ export function createSiteNavigationStructuredData(
 
 export function createBreadcrumbStructuredData(
   items: Array<{ name: string; path: string }>,
+  baseUrl?: string,
 ) {
   return {
     "@context": "https://schema.org",
@@ -161,7 +162,7 @@ export function createBreadcrumbStructuredData(
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: absoluteUrl(item.path),
+      item: new URL(item.path.startsWith("/") ? item.path : `/${item.path}`, baseUrl || siteConfig.url).toString(),
     })),
   };
 }

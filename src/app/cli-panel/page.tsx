@@ -1,4 +1,4 @@
-import { createBreadcrumbStructuredData, createMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData, createMetadata, surfaceConfig } from "@/lib/seo";
 import { cliPanelMetrics, cliPanelModules, platformSurfaces } from "@/lib/platform";
 import { SurfaceLanding } from "@/components/platform/surface-landing";
 import { Download, KeyRound, Laptop2 } from "lucide-react";
@@ -26,8 +26,8 @@ export const metadata = createMetadata({
 export default async function CliPanelPage() {
   const breadcrumbStructuredData = createBreadcrumbStructuredData([
     { name: "Inicio", path: "/" },
-    { name: "Hydra Cyber", path: "/cli-panel" },
-  ]);
+    { name: "Hydra Cyber", path: "/" },
+  ], surfaceConfig.cliUrl);
   const releases = await prisma.cliRelease.findMany({
     orderBy: [{ publishedAt: "desc" }, { version: "desc" }],
     take: 6,
@@ -64,9 +64,9 @@ export default async function CliPanelPage() {
           "Dashboard com foco em licenças, releases, downloads, conta, billing e segurança.",
           "Assinatura visual diferente da Hydra API e da HYDRA principal.",
         ]}
-        primaryHref="/cli-panel/login"
-        secondaryHref="/cli-panel/register"
-        dashboardHref="/cli-panel/dashboard"
+        primaryHref={`${surfaceConfig.cliUrl}/login`}
+        secondaryHref={`${surfaceConfig.cliUrl}/register`}
+        dashboardHref={`${surfaceConfig.cliUrl}/dashboard`}
       />
       <section className="mx-auto mt-8 max-w-7xl rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
