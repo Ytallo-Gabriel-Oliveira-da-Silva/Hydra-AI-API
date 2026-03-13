@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { subMonths } from "date-fns";
 import { nanoid } from "nanoid";
 import { prisma } from "@/lib/db";
+import { getHydraCyberCompliance } from "@/lib/hydra-cyber";
 
 const API_KEY_PREFIX_LENGTH = 18;
 
@@ -202,7 +203,7 @@ export async function revokeApiKeyForUser(userId: string, keyId: string) {
 }
 
 export async function getCliPanelOverview(userId: string) {
-  const [licenses, devices, releases, wallet] = await Promise.all([
+  const [licenses, devices, releases, wallet, recentPayments, compliance] = await Promise.all([
     prisma.cliLicense.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -223,7 +224,19 @@ export async function getCliPanelOverview(userId: string) {
       take: 12,
     }),
     ensureCreditWallet(userId),
+    prisma.paymentTransaction.findMany({
+      where: { userId, productType: { in: ["cli_license", "api_credit"] } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+    getHydraCyberCompliance(userId),
   ]);
+
+  const validLicense = licenses.find((license) => {
+    if (license.status !== "active") return false;
+    if (!license.updatesUntil) return true;
+    return license.updatesUntil > new Date();
+  });
 
   return {
     wallet: {
@@ -236,6 +249,14 @@ export async function getCliPanelOverview(userId: string) {
       activeLicenses: licenses.filter((license) => license.status === "active").length,
       activeDevices: devices.filter((device) => !device.revokedAt).length,
       releaseCount: releases.length,
+    },
+    compliance,
+    desktopAccess: {
+      requiresLicense: true,
+      hasValidLicense: Boolean(validLicense),
+      latestLicenseCode: validLicense?.code || null,
+      latestLicenseTier: validLicense?.tier || null,
+      deviceLimit: validLicense?.deviceLimit || 0,
     },
     licenses: licenses.map((license) => ({
       id: license.id,
@@ -275,6 +296,15 @@ export async function getCliPanelOverview(userId: string) {
       checksum: release.checksum,
       notes: release.notes,
       publishedAt: release.publishedAt.toISOString(),
+    })),
+    recentPayments: recentPayments.map((payment) => ({
+      id: payment.id,
+      displayName: payment.displayName || payment.productRef || "Hydra",
+      productType: payment.productType,
+      paymentMethod: payment.paymentMethod,
+      amount: payment.amount,
+      status: payment.status,
+      createdAt: payment.createdAt.toISOString(),
     })),
   };
 }

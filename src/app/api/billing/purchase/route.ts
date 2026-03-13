@@ -14,6 +14,7 @@ import {
   resolveAsaasPixExpirationDate,
 } from "@/lib/asaas";
 import { requireSurfaceAppUrl, type AppSurface } from "@/lib/app-url";
+import { assertHydraCyberReady } from "@/lib/hydra-cyber";
 import { serializeBillingTransaction } from "@/lib/payment-fulfillment";
 
 const db = prisma as any;
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser(req);
     const body = await req.json();
     const parsed = schema.parse(body);
+    const compliance = parsed.category === "cli_license" ? await assertHydraCyberReady(user.id) : null;
     const product = getProductDefinition(parsed.category, parsed.productId);
 
     const transaction = await db.paymentTransaction.create({
@@ -99,11 +101,12 @@ export async function POST(req: NextRequest) {
 
     if (parsed.paymentMethod === "pix") {
       const now = new Date();
-      const cpfCnpj = normalizeCpfCnpj(parsed.cpfCnpj || "");
+      const cpfCnpj = normalizeCpfCnpj(parsed.cpfCnpj || compliance?.profile.documentNumber || "");
       const customer = await createAsaasCustomer({
-        name: user.name,
-        email: user.email,
+        name: compliance?.profile.fullName || user.name,
+        email: compliance?.profile.email || user.email,
         cpfCnpj,
+        mobilePhone: compliance?.profile.phone || undefined,
         externalReference: user.id,
         notificationDisabled: true,
       });
@@ -138,6 +141,7 @@ export async function POST(req: NextRequest) {
             asaasPaymentId: payment.id,
             asaasStatus: payment.status || null,
             pixQrCodeImage,
+            complianceProfile: compliance?.profile || null,
           }),
         },
       });
@@ -174,6 +178,7 @@ export async function POST(req: NextRequest) {
           externalReference: transaction.id,
           asaasCheckoutId: checkout.id,
           asaasCheckoutUrl: checkoutUrl,
+          complianceProfile: compliance?.profile || null,
         }),
       },
     });

@@ -59,10 +59,10 @@ export const platformSurfaces: PlatformSurface[] = [
   },
   {
     id: "cli",
-    name: "Hydra CLI Panel",
+    name: "Hydra Cyber",
     domain: "cli.hydra-ai.shop",
-    headline: "Painel de licenca, downloads, ativacoes, releases e consumo do CLI profissional.",
-    summary: "A licenca libera o produto CLI e os creditos financiam o consumo real da IA por comando.",
+    headline: "Painel de licenca, compliance, downloads, ativacoes, releases e consumo do desktop profissional.",
+    summary: "A licenca libera o Hydra Cyber e os creditos financiam o consumo real da IA, labs e recursos cloud dentro do app.",
   },
 ];
 
@@ -132,7 +132,7 @@ export const cliPanelModules: PlatformModule[] = [
   },
   {
     title: "Comandos Hydra",
-    summary: "Texto, imagem, audio, consulta de modelos, configuracao local e status do ambiente.",
+    summary: "Texto, imagem, audio, consulta de modelos, configuracao local, terminal e status do ambiente.",
     icon: TerminalSquare,
   },
   {

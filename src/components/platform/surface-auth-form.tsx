@@ -32,10 +32,10 @@ const surfaceConfig = {
     },
   },
   cli: {
-    label: "Hydra CLI",
-    badge: "Operator Console",
-    title: "Acesso profissional para licenças, dispositivos e releases",
-    description: "Entre para administrar licenças, baixar binários, controlar máquinas ativas e acompanhar o consumo real do Hydra CLI.",
+    label: "Hydra Cyber",
+    badge: "Desktop Operator",
+    title: "Acesso profissional para licença, desktop instalado e dispositivos autorizados",
+    description: "Entre para administrar licenças, baixar builds, controlar máquinas ativas e acompanhar o consumo real do Hydra Cyber usando a mesma conta Hydra.",
     gradient: "from-emerald-500 via-lime-400 to-amber-300",
     panelClass: "border-emerald-400/20 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.18),_transparent_38%),linear-gradient(180deg,rgba(13,18,12,0.97),rgba(12,15,9,0.94))]",
     accentText: "text-emerald-200",
@@ -44,7 +44,7 @@ const surfaceConfig = {
     bullets: [
       "Licenças e assentos por conta.",
       "Dispositivos ativos com revogação remota.",
-      "Releases estáveis para Linux, Windows e macOS.",
+      "Releases estáveis para Linux, Windows e futuras plataformas.",
     ],
     switchHref: {
       login: "/login",
