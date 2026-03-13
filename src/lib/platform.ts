@@ -117,7 +117,7 @@ export const apiPanelRoadmap = [
 export const cliPanelModules: PlatformModule[] = [
   {
     title: "Licenca e ativacao",
-    summary: "Licenca permanente com janela de updates, maquinas autorizadas e trilha de ativacao.",
+    summary: "Licenca anual por usuario, vinculacao por conta, limite de dispositivos por plano e trilha de ativacao.",
     icon: KeyRound,
   },
   {
@@ -127,7 +127,7 @@ export const cliPanelModules: PlatformModule[] = [
   },
   {
     title: "Conta e saldo",
-    summary: "Mesmo login do ecossistema Hydra com leitura de saldo, consumo e historico financeiro.",
+    summary: "Mesmo login do ecossistema Hydra com dashboard completo de pagamentos, creditos, contratos e consumo.",
     icon: CreditCard,
   },
   {
@@ -137,7 +137,7 @@ export const cliPanelModules: PlatformModule[] = [
   },
   {
     title: "Governanca do cliente",
-    summary: "Sessoes, dispositivos, tokens do CLI, politicas de acesso e revogacao remota.",
+    summary: "Sessoes, dispositivos, tokens, politicas de uso etico, revogacao remota e trilha de auditoria.",
     icon: LockKeyhole,
   },
   {
@@ -148,9 +148,9 @@ export const cliPanelModules: PlatformModule[] = [
 ];
 
 export const cliPanelMetrics: PlatformMetric[] = [
-  { label: "Licencas ativas", value: "2.3k", detail: "base prevista para fase comercial" },
-  { label: "Dispositivos por conta", value: "2", detail: "regra inicial recomendada" },
-  { label: "Comandos suportados", value: "10+", detail: "V1 com foco em produtividade" },
+  { label: "Planos comerciais", value: "4", detail: "Starter, Pro, Team e Enterprise" },
+  { label: "Dispositivos por conta", value: "1-80", detail: "conforme o plano contratado" },
+  { label: "Comandos suportados", value: "10+", detail: "V1 com foco em produtividade e seguranca" },
   { label: "Updates incluidos", value: "12 meses", detail: "janela recomendada por licenca" },
 ];
 
@@ -158,7 +158,9 @@ export const cliPanelRoadmap = [
   "Painel gratuito para baixar, ativar e acompanhar o CLI.",
   "Licenca libera o produto; creditos pagam o consumo da IA.",
   "V1 com login, saldo, usage, models, text, image, audio e update.",
+  "Planos Starter, Pro, Team e Enterprise com limites por usuario/dispositivo.",
   "Ativacao por dispositivo e revogacao remota pelo painel.",
+  "Enterprise com deploy na nuvem do cliente usando PM2 e Nginx.",
   "Integracao direta com a Hydra API sem duplicar autenticacao.",
 ];
 

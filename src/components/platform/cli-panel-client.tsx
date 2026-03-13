@@ -85,7 +85,7 @@ export function CliPanelClient() {
   const [licenseCode, setLicenseCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
   const [purchaseMethod, setPurchaseMethod] = useState<"pix" | "credit">("pix");
-  const [selectedTierId, setSelectedTierId] = useState(cliLicenseTiers[1]?.id || cliLicenseTiers[0]?.id || "");
+  const [selectedTierId, setSelectedTierId] = useState(cliLicenseTiers.find((tier) => tier.highlight)?.id || cliLicenseTiers[0]?.id || "");
   const [cpfCnpj, setCpfCnpj] = useState("");
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
@@ -250,9 +250,16 @@ export function CliPanelClient() {
                 className={`rounded-3xl border p-4 text-left transition ${selectedTierId === tier.id ? "border-fuchsia-300/40 bg-fuchsia-400/10" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
               >
                 <p className="text-sm font-semibold text-white">{tier.name}</p>
+                {tier.highlight && <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-fuchsia-200">Mais escolhido</p>}
                 <p className="mt-2 text-2xl font-semibold text-white">R$ {tier.price}</p>
-                <p className="mt-1 text-xs text-fuchsia-200">{tier.deviceLimit} dispositivos • {tier.updatesMonths} meses de updates</p>
+                <p className="mt-1 text-xs text-fuchsia-200">{tier.seatLimit} assentos • {tier.deviceLimit} dispositivos • {tier.updatesMonths} meses</p>
                 <p className="mt-3 text-xs leading-relaxed text-slate-300">{tier.description}</p>
+                <p className="mt-2 text-xs text-slate-400">{tier.supportLabel}</p>
+                <ul className="mt-3 space-y-1 text-xs text-slate-300">
+                  {tier.highlights.map((item) => (
+                    <li key={item}>• {item}</li>
+                  ))}
+                </ul>
               </button>
             ))}
           </div>
