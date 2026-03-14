@@ -1,0 +1,37 @@
+name: Hydra Cyber Desktop Windows Manual Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  win-build:
+    name: Build Windows ZIP
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: software/hydra-cyber-desktop
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: software/hydra-cyber-desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package for Windows ZIP
+        run: npm run dist -- --win zip
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydra-cyber-windows-zip
+          path: software/hydra-cyber-desktop/release/*.zip
+          if-no-files-found: error
