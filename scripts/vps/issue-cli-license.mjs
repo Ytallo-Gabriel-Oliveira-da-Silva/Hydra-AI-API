@@ -1,7 +1,48 @@
 #!/usr/bin/env node
-import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+function loadDotEnvIfNeeded() {
+  if (process.env.DATABASE_URL) return;
+
+  const candidates = [
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.production.local",
+  ];
+
+  for (const file of candidates) {
+    const envPath = join(process.cwd(), file);
+    if (!existsSync(envPath)) continue;
+
+    const raw = readFileSync(envPath, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const idx = trimmed.indexOf("=");
+      if (idx <= 0) continue;
+      const key = trimmed.slice(0, idx).trim();
+      let value = trimmed.slice(idx + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) {
+        process.env[key] = value;
+      }
+    }
+
+    if (process.env.DATABASE_URL) return;
+  }
+
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL não definido. Configure no ambiente ou em .env/.env.local/.env.production");
+  }
+}
+
+loadDotEnvIfNeeded();
 
 const prisma = new PrismaClient({ log: ["error"] });
 

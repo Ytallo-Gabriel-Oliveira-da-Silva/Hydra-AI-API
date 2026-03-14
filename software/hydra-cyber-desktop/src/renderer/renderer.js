@@ -27,6 +27,20 @@ const ui = {
 
 let downloadPollTimer = null;
 let lastInstallGuide = null;
+let busyCount = 0;
+
+function setBusy(nextBusy) {
+  if (nextBusy) {
+    busyCount += 1;
+  } else {
+    busyCount = Math.max(0, busyCount - 1);
+  }
+
+  const disabled = busyCount > 0;
+  document.querySelectorAll("button").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
 
 function log(message, payload) {
   const line = payload ? `${message}\n${JSON.stringify(payload, null, 2)}` : message;
@@ -51,6 +65,7 @@ async function refreshStatus() {
 }
 
 async function guarded(name, task) {
+  setBusy(true);
   try {
     const result = await task();
     log(`${name}: OK`, result);
@@ -58,7 +73,9 @@ async function guarded(name, task) {
     return result;
   } catch (error) {
     log(`${name}: FALHA`, { error: error?.message || String(error) });
-    throw error;
+    return null;
+  } finally {
+    setBusy(false);
   }
 }
 
