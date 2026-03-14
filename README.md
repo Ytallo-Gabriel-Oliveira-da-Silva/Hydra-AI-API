@@ -100,7 +100,8 @@ Video usa PIAPI com `sora2-pro-video`, resolucao fixa em `720p` e duracao limita
 O middleware reescreve automaticamente a raiz de cada host:
 
 - `api.hydra-ai.shop/` -> `/api-panel`
-- `cyber.hydra-ai.shop/` -> `/cli-panel`
+- `cyber.hydra-ai.shop/` -> `/cyber-panel`
+- `cli.hydra-ai.shop/` -> `/cli-panel`
 
 Isso permite publicar uma unica aplicacao Next.js atras de um proxy reverso e expor experiencias separadas por subdominio.
 
