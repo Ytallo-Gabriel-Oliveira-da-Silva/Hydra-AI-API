@@ -19,6 +19,7 @@ type TransactionWithRelations = {
   currency: string;
   status: string;
   metadata: string | null;
+  createdAt: Date;
   user: { currentPeriodEndsAt: Date | null } | null;
   plan: { slug: string } | null;
 };
@@ -149,7 +150,7 @@ export async function fulfillPaymentTransaction(transactionId: string, event?: s
         tier: tier.id,
         seatLimit: tier.seatLimit,
         deviceLimit: tier.deviceLimit,
-        updatesUntil: addMonths(new Date(), tier.updatesMonths),
+        updatesUntil: addMonths(transaction.createdAt, tier.updatesMonths),
         activatedAt: new Date(),
         metadata: JSON.stringify({ sourceTransactionId: transaction.id, productRef: transaction.productRef }),
       },

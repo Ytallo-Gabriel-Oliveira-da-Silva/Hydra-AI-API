@@ -68,6 +68,14 @@ export default async function CliPanelPage() {
         secondaryHref={`${surfaceConfig.cyberUrl}/register`}
         dashboardHref={`${surfaceConfig.cyberUrl}/dashboard`}
       />
+      <section className="mx-auto mt-8 max-w-7xl rounded-[2rem] border border-amber-300/30 bg-amber-400/10 p-6 text-amber-50 shadow-2xl backdrop-blur">
+        <p className="text-xs uppercase tracking-[0.24em] text-amber-200">Aviso importante</p>
+        <h2 className="mt-2 text-xl font-semibold text-white">Software Hydra Cyber em desenvolvimento</h2>
+        <p className="mt-2 text-sm text-amber-50/90">
+          As compras de licença e as recargas já estão disponíveis para contratação, porém a validação e o uso operacional dessas licenças no app desktop
+          só serão liberados após o lançamento oficial do software Hydra Cyber.
+        </p>
+      </section>
       <section className="mx-auto mt-8 max-w-7xl rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>

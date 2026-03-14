@@ -67,6 +67,7 @@ function safeParseSettings(payload?: string | null): SettingsPayload {
 }
 
 function normalizeProfile(user: { name: string; email: string }, stored?: StoredCompliance): HydraCyberCompliance {
+  const hasCurrentContractVersion = stored?.contractVersion === HYDRA_CYBER_CONTRACT_VERSION;
   const profile: HydraCyberProfileInput = {
     fullName: stored?.fullName || user.name,
     email: stored?.email || user.email,
@@ -85,9 +86,9 @@ function normalizeProfile(user: { name: string; email: string }, stored?: Stored
     responsibleName: stored?.responsibleName || "",
     responsibleCpf: stored?.responsibleCpf || "",
     responsibleRole: stored?.responsibleRole || "",
-    responsibilityAccepted: Boolean(stored?.responsibilityAccepted),
-    acceptableUseAccepted: Boolean(stored?.acceptableUseAccepted),
-    billingAgreementAccepted: Boolean(stored?.billingAgreementAccepted),
+    responsibilityAccepted: hasCurrentContractVersion && Boolean(stored?.responsibilityAccepted),
+    acceptableUseAccepted: hasCurrentContractVersion && Boolean(stored?.acceptableUseAccepted),
+    billingAgreementAccepted: hasCurrentContractVersion && Boolean(stored?.billingAgreementAccepted),
   };
 
   const missing: string[] = [];
@@ -114,6 +115,7 @@ function normalizeProfile(user: { name: string; email: string }, stored?: Stored
   if (!profile.responsibilityAccepted) missing.push("Aceite do contrato de responsabilidade");
   if (!profile.acceptableUseAccepted) missing.push("Aceite da política de uso ético");
   if (!profile.billingAgreementAccepted) missing.push("Aceite do acordo de faturamento e cobrança");
+  if (stored?.contractVersion && !hasCurrentContractVersion) missing.push(`Aceite atualizado do contrato Hydra Cyber (${HYDRA_CYBER_CONTRACT_VERSION})`);
 
   return {
     profile,
@@ -123,11 +125,11 @@ function normalizeProfile(user: { name: string; email: string }, stored?: Stored
       canPurchase: missing.length === 0,
       canActivateDesktop: missing.length === 0,
     },
-    contractVersion: stored?.contractVersion || HYDRA_CYBER_CONTRACT_VERSION,
+    contractVersion: HYDRA_CYBER_CONTRACT_VERSION,
     acceptedAt: {
-      responsibilityContractAt: stored?.acceptedAt?.responsibilityContractAt || null,
-      acceptableUseAt: stored?.acceptedAt?.acceptableUseAt || null,
-      billingAgreementAt: stored?.acceptedAt?.billingAgreementAt || null,
+      responsibilityContractAt: hasCurrentContractVersion ? stored?.acceptedAt?.responsibilityContractAt || null : null,
+      acceptableUseAt: hasCurrentContractVersion ? stored?.acceptedAt?.acceptableUseAt || null : null,
+      billingAgreementAt: hasCurrentContractVersion ? stored?.acceptedAt?.billingAgreementAt || null : null,
     },
   };
 }
@@ -300,6 +302,12 @@ export async function heartbeatHydraCyberDevice({
 
   if (!activation) throw new Error("Ativação não encontrada ou revogada");
   if (activation.license.updatesUntil && activation.license.updatesUntil < new Date()) {
+    if (activation.license.status !== "expired") {
+      await prisma.cliLicense.update({
+        where: { id: activation.license.id },
+        data: { status: "expired" },
+      });
+    }
     throw new Error("A licença vinculada a este dispositivo expirou");
   }
 

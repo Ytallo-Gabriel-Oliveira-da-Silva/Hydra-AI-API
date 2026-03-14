@@ -170,6 +170,22 @@ export function CliPanelClient() {
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
   const [transaction, setTransaction] = useState<Record<string, any> | null>(null);
 
+  async function persistCompliance(showSuccessMessage: boolean) {
+    const res = await fetch("/api/cli-panel/compliance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(complianceForm),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erro ao salvar perfil Hydra Cyber");
+    await loadOverview();
+    if (showSuccessMessage) {
+      setPurchaseSuccess("Perfil Hydra Cyber salvo com sucesso.");
+    }
+    return data;
+  }
+
   async function loadOverview() {
     try {
       setLoading(true);
@@ -218,16 +234,7 @@ export function CliPanelClient() {
     try {
       setSavingCompliance(true);
       setError(null);
-      const res = await fetch("/api/cli-panel/compliance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(complianceForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao salvar perfil Hydra Cyber");
-      await loadOverview();
-      setPurchaseSuccess("Perfil Hydra Cyber salvo com sucesso.");
+      await persistCompliance(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao salvar perfil Hydra Cyber");
     } finally {
@@ -273,11 +280,17 @@ export function CliPanelClient() {
   }
 
   async function createPurchase() {
-    if (!selectedTierId || !overview?.compliance.readiness.canPurchase) return;
+    if (!selectedTierId) return;
     try {
       setPurchaseLoading(true);
       setError(null);
       setPurchaseSuccess(null);
+      const compliance = await persistCompliance(false);
+      if (!compliance.readiness?.canPurchase) {
+        throw new Error(compliance.readiness?.missing?.length
+          ? `Complete o perfil Hydra Cyber antes de comprar: ${compliance.readiness.missing.join(", ")}`
+          : "Complete o perfil Hydra Cyber antes de comprar.");
+      }
       const res = await fetch("/api/billing/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -299,6 +312,7 @@ export function CliPanelClient() {
       setError(err instanceof Error ? err.message : "Erro ao iniciar compra da licença");
     } finally {
       setPurchaseLoading(false);
+      setSavingCompliance(false);
     }
   }
 
@@ -565,6 +579,13 @@ export function CliPanelClient() {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-4 rounded-3xl border border-amber-300/25 bg-amber-400/10 p-4 text-sm text-amber-50">
+              <p className="font-semibold">Software Hydra Cyber em desenvolvimento</p>
+              <p className="mt-1 text-xs text-amber-100">
+                A compra de licença e as recargas já podem ser feitas, mas a validação e o uso no desktop só serão liberados após o lançamento oficial do software.
+              </p>
+            </div>
+
             {!readiness?.ready && (
               <div className="mb-4 rounded-3xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-50">
                 Finalize o perfil legal/fiscal acima antes de comprar. O checkout só abre quando a conta estiver pronta para contrato e auditoria.
@@ -598,7 +619,7 @@ export function CliPanelClient() {
 
             <button
               onClick={createPurchase}
-              disabled={purchaseLoading || !readiness?.canPurchase || (purchaseMethod === "pix" && !cpfCnpj.trim())}
+              disabled={purchaseLoading || savingCompliance || (purchaseMethod === "pix" && !cpfCnpj.trim())}
               className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {purchaseLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}

@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
             asaasPaymentId: payment.id,
             asaasStatus: payment.status || null,
             pixQrCodeImage,
-            complianceProfile: compliance?.profile || null,
+            hydraCyberContractVersion: compliance?.contractVersion || null,
           }),
         },
       });
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
           externalReference: transaction.id,
           asaasCheckoutId: checkout.id,
           asaasCheckoutUrl: checkoutUrl,
-          complianceProfile: compliance?.profile || null,
+          hydraCyberContractVersion: compliance?.contractVersion || null,
         }),
       },
     });

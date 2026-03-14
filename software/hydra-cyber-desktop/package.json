@@ -1,0 +1,18 @@
+{
+  "name": "hydra-cyber-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Base inicial do software Hydra Cyber para Windows, Linux e macOS.",
+  "scripts": {
+    "dev": "tsx src/bootstrap.ts",
+    "build": "tsc -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

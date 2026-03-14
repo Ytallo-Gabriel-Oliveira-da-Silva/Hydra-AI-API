@@ -63,7 +63,7 @@ export function SurfaceAuthForm({ surface, mode }: SurfaceAuthFormProps) {
 
   useEffect(() => {
     const h = window.location.hostname;
-    const target = surface === "api" ? h.replace(/^api\./, "cli.") : h.replace(/^cli\./, "api.");
+    const target = surface === "api" ? h.replace(/^api\./, "cyber.") : h.replace(/^cyber\./, "api.");
     if (target !== h) {
       setOtherSurfaceUrl(`${window.location.protocol}//${target}`);
     }
