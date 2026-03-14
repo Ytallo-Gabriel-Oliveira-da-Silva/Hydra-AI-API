@@ -84,7 +84,11 @@ export type AuthenticatedUser = {
 };
 
 export type LoginEnvelope = {
-  user: AuthenticatedUser;
+  user: Omit<AuthenticatedUser, "plan"> & {
+    plan: AuthenticatedUser["plan"] | string;
+  };
+  sessionToken?: string;
+  sessionExpiresAt?: string;
 };
 
 export type DesktopSessionState = {

@@ -14,7 +14,20 @@ export async function POST(req: NextRequest) {
     const user = await loginUser(parsed.email.toLowerCase(), parsed.password);
     const sessionInfo = await startSession(user.id, req);
     await detectAndStoreCountry(user.id, req);
-    const res = NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, plan: user.plan.slug } });
+    const isDesktopClient = req.headers.get("x-hydra-desktop") === "1";
+    const res = NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        plan: {
+          slug: user.plan.slug,
+          name: user.plan.name,
+        },
+      },
+      sessionToken: isDesktopClient ? sessionInfo.token : undefined,
+      sessionExpiresAt: isDesktopClient ? sessionInfo.expiresAt.toISOString() : undefined,
+    });
     setSessionCookie(res, sessionInfo.token, sessionInfo.expiresAt);
     return res;
   } catch (err: unknown) {

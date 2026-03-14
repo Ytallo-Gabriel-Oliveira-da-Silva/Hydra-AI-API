@@ -27,20 +27,6 @@ const ui = {
 
 let downloadPollTimer = null;
 let lastInstallGuide = null;
-let busyCount = 0;
-
-function setBusy(nextBusy) {
-  if (nextBusy) {
-    busyCount += 1;
-  } else {
-    busyCount = Math.max(0, busyCount - 1);
-  }
-
-  const disabled = busyCount > 0;
-  document.querySelectorAll("button").forEach((button) => {
-    button.disabled = disabled;
-  });
-}
 
 function log(message, payload) {
   const line = payload ? `${message}\n${JSON.stringify(payload, null, 2)}` : message;
@@ -65,7 +51,6 @@ async function refreshStatus() {
 }
 
 async function guarded(name, task) {
-  setBusy(true);
   try {
     const result = await task();
     log(`${name}: OK`, result);
@@ -74,8 +59,6 @@ async function guarded(name, task) {
   } catch (error) {
     log(`${name}: FALHA`, { error: error?.message || String(error) });
     return null;
-  } finally {
-    setBusy(false);
   }
 }
 
@@ -232,5 +215,11 @@ ui.btnCopyInstallCommand.addEventListener("click", () => {
   });
 });
 
-void refreshStatus();
+void refreshStatus().catch((error) => {
+  log("status:init FALHA", { error: error?.message || String(error) });
+  ui.statusBox.innerHTML = `
+    <p><strong>Status:</strong> indisponível</p>
+    <p><strong>Detalhe:</strong> falha ao carregar status inicial</p>
+  `;
+});
 log("Hydra Cyber Desktop UI inicializada");
