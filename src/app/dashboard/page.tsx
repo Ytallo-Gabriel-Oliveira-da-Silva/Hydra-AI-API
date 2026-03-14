@@ -23,6 +23,7 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
+  TerminalSquare,
   User,
   Wand2,
   Workflow,
@@ -70,6 +71,12 @@ const surfaceShortcuts = [
     label: "Ir para Hydra API",
     href: process.env.NEXT_PUBLIC_API_APP_URL || "https://api.hydra-ai.shop",
     icon: Rocket,
+  },
+  {
+    id: "hydra-cli-surface",
+    label: "Ir para Hydra CLI",
+    href: process.env.NEXT_PUBLIC_CLI_APP_URL || "https://cli.hydra-ai.shop",
+    icon: TerminalSquare,
   },
   {
     id: "cli-surface",

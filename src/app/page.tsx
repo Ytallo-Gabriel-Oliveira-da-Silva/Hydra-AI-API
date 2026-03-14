@@ -7,13 +7,15 @@ import type { ReactNode } from "react";
 export const metadata = createMetadata({
   title: "Plataforma multimodal",
   description:
-    "Conheca a HYDRA AI: plataforma principal multimodal com chat, busca, imagem, audio e video, alem das superficies dedicadas Hydra API e Hydra Cyber.",
+    "Conheca a HYDRA AI: plataforma principal multimodal com chat, busca, imagem, audio e video, alem das superficies dedicadas Hydra API, Hydra CLI e Hydra Cyber.",
   path: "/",
   keywords: [
     "HYDRA AI oficial",
     "Hydra API",
+    "Hydra CLI",
     "Hydra Cyber",
     "api.hydra-ai.shop",
+    "cli.hydra-ai.shop",
     "cyber.hydra-ai.shop",
     "chat multimodal",
     "IA com audio e video",
@@ -84,8 +86,9 @@ export default function Home() {
               />
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
               <QuickLink href="/api-panel" label="Hydra API Panel" description="Estrutura inicial para chaves, créditos, billing e analytics empresariais" />
+              <QuickLink href="https://cli.hydra-ai.shop" label="Hydra CLI" description="Ambiente dedicado do CLI com acesso direto pelo subdomínio próprio" />
               <QuickLink href="/cli-panel" label="Hydra Cyber" description="Software desktop com licença, downloads, ativações, compliance e consumo operacional" />
             </div>
 
@@ -148,7 +151,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-emerald-300" />
-                Hydra API e Hydra Cyber agora têm estrutura própria dentro do projeto para evoluir sem duplicar a base principal.
+                Hydra API, Hydra CLI e Hydra Cyber agora têm acessos dedicados para evoluir sem duplicar a base principal.
               </li>
             </ul>
             <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-200">
