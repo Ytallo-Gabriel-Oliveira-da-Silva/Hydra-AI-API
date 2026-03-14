@@ -4,14 +4,73 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Base inicial do software Hydra Cyber para Windows, Linux e macOS.",
+  "author": "Hydra AI <support@hydra-ai.shop>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ytallo-Gabriel-Oliveira-da-Silva/Hydra-AI-API.git"
+  },
+  "main": "dist/main/main.js",
   "scripts": {
-    "dev": "tsx src/bootstrap.ts",
-    "build": "tsc -p tsconfig.json"
+    "dev:cli": "tsx src/bootstrap.ts",
+    "dev": "npm run build && electron dist/main/main.js",
+    "build": "tsc -p tsconfig.json && node scripts/copy-renderer.mjs",
+    "test:smoke": "tsx scripts/smoke.ts",
+    "test:integration": "tsx scripts/integration.ts",
+    "test:all": "npm run test:smoke && npm run test:integration",
+    "start": "electron dist/main/main.js",
+    "dist": "npm run build && electron-builder --publish never"
   },
   "engines": {
     "node": ">=20"
   },
+  "build": {
+    "appId": "shop.hydra.cyber.desktop",
+    "productName": "Hydra Cyber",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "tar.gz"
+      ],
+      "category": "Development"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://cyber.hydra-ai.shop/downloads"
+      }
+    ]
+  },
   "devDependencies": {
+    "@types/node": "^22.13.14",
+    "electron": "^35.0.1",
+    "electron-builder": "^25.1.8",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }

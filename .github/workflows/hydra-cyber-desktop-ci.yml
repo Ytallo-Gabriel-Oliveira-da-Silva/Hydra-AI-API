@@ -1,0 +1,45 @@
+name: Hydra Cyber Desktop CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "software/hydra-cyber-desktop/**"
+      - ".github/workflows/hydra-cyber-desktop-ci.yml"
+  pull_request:
+    paths:
+      - "software/hydra-cyber-desktop/**"
+      - ".github/workflows/hydra-cyber-desktop-ci.yml"
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    defaults:
+      run:
+        working-directory: software/hydra-cyber-desktop
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: software/hydra-cyber-desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop
+        run: npm run build
+
+      - name: Desktop tests
+        run: npm run test:all

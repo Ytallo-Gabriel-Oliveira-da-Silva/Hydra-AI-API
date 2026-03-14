@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hydra Cyber Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <h1>Hydra Cyber</h1>
+        <p class="muted">Desktop Operator Console</p>
+
+        <div class="status-box" id="status-box">
+          <p>Status: carregando...</p>
+        </div>
+
+        <button id="btn-refresh-status" class="btn btn-secondary">Atualizar status</button>
+        <button id="btn-heartbeat" class="btn btn-secondary">Heartbeat agora</button>
+        <button id="btn-doctor" class="btn btn-secondary">Diagnóstico</button>
+        <button id="btn-self-test" class="btn btn-secondary">Self-test completo</button>
+      </aside>
+
+      <main class="main-content">
+        <section class="panel">
+          <h2>Autenticação</h2>
+          <div class="grid-two">
+            <input id="login-email" type="email" placeholder="email" />
+            <input id="login-password" type="password" placeholder="senha" />
+          </div>
+          <div class="row">
+            <button id="btn-login" class="btn">Login</button>
+            <button id="btn-whoami" class="btn btn-secondary">Whoami</button>
+            <button id="btn-logout" class="btn btn-danger">Logout</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Licença e Runtime</h2>
+          <input id="license-code" type="text" placeholder="Código da licença HYDRA-..." />
+          <div class="row">
+            <button id="btn-activate" class="btn">Ativar licença</button>
+            <button id="btn-start-runtime" class="btn">Iniciar runtime</button>
+            <button id="btn-stop-runtime" class="btn btn-secondary">Parar runtime</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Releases</h2>
+          <div class="row">
+            <button id="btn-releases" class="btn btn-secondary">Carregar releases</button>
+            <button id="btn-check-updates" class="btn btn-secondary">Verificar atualização</button>
+            <button id="btn-download-recommended" class="btn">Baixar release recomendada</button>
+            <button id="btn-install-guide" class="btn btn-secondary">Guia de instalação</button>
+            <button id="btn-copy-install-command" class="btn btn-secondary">Copiar comando</button>
+          </div>
+          <div id="recommended-release" class="recommended-release"></div>
+          <div id="download-status" class="download-status"></div>
+          <div id="install-guide" class="install-guide"></div>
+          <div id="releases" class="release-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Console operacional</h2>
+          <pre id="console" class="console"></pre>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>

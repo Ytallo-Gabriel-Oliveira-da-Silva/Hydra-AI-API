@@ -38,12 +38,20 @@ export type DeviceActivationResponse = {
   updatesUntil: string | null;
 };
 
+export type DeviceActivationEnvelope = {
+  activation: DeviceActivationResponse;
+};
+
 export type DeviceHeartbeatResponse = {
   activationId: string;
   lastSeenAt: string | null;
   licenseCode: string;
   licenseTier: string;
   updatesUntil: string | null;
+};
+
+export type DeviceHeartbeatEnvelope = {
+  heartbeat: DeviceHeartbeatResponse;
 };
 
 export type ReleaseManifestItem = {
@@ -55,4 +63,35 @@ export type ReleaseManifestItem = {
   checksum: string | null;
   notes: string | null;
   publishedAt: string;
+};
+
+export type ReleaseManifestEnvelope = {
+  releases: ReleaseManifestItem[];
+};
+
+export type AuthenticatedUser = {
+  id: string;
+  email: string;
+  name: string;
+  countryCode?: string | null;
+  plan: {
+    slug: string;
+    name: string;
+    monthlyPrice?: number | null;
+    yearlyPrice?: number | null;
+  };
+  renewalAt?: string | null;
+};
+
+export type LoginEnvelope = {
+  user: AuthenticatedUser;
+};
+
+export type DesktopSessionState = {
+  sessionCookie: string | null;
+  user: AuthenticatedUser | null;
+  activationId: string | null;
+  licenseCode: string | null;
+  lastHeartbeatAt: string | null;
+  updatedAt: string;
 };

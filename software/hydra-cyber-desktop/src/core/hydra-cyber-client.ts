@@ -1,17 +1,21 @@
 import { createHash } from "node:crypto";
 import type {
+  DeviceActivationEnvelope,
   DeviceActivationRequest,
   DeviceActivationResponse,
+  DeviceHeartbeatEnvelope,
   DeviceHeartbeatResponse,
+  ReleaseManifestEnvelope,
   ReleaseManifestItem,
 } from "./contracts.js";
 import { runtimeConfig } from "./runtime-config.js";
 import { buildSystemProfile } from "./system-profile.js";
+import { requestJson } from "./http-client.js";
 
-function buildJsonHeaders(sessionToken?: string) {
+function buildJsonHeaders(sessionCookie?: string) {
   return {
     "Content-Type": "application/json",
-    ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+    ...(sessionCookie ? { Cookie: sessionCookie } : {}),
   };
 }
 
@@ -20,7 +24,7 @@ export function buildDeviceFingerprint(seed: string) {
 }
 
 export async function activateDevice(input: {
-  sessionToken: string;
+  sessionCookie: string;
   licenseCode: string;
   appVersion: string;
 }) {
@@ -33,47 +37,36 @@ export async function activateDevice(input: {
     cliVersion: input.appVersion,
   };
 
-  const response = await fetch(`${runtimeConfig.apiBaseUrl}/devices/activate`, {
+  const data = await requestJson<DeviceActivationEnvelope>(`${runtimeConfig.apiBaseUrl}/devices/activate`, {
     method: "POST",
-    headers: buildJsonHeaders(input.sessionToken),
+    headers: buildJsonHeaders(input.sessionCookie),
     body: JSON.stringify(payload),
+    timeoutMs: 12000,
+    retries: 1,
   });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || "Falha ao ativar dispositivo Hydra Cyber");
-  }
-
-  return response.json() as Promise<DeviceActivationResponse>;
+  return data.activation;
 }
 
 export async function sendHeartbeat(input: {
-  sessionToken: string;
+  sessionCookie: string;
   activationId: string;
   appVersion: string;
 }) {
-  const response = await fetch(`${runtimeConfig.apiBaseUrl}/devices/heartbeat`, {
+  const data = await requestJson<DeviceHeartbeatEnvelope>(`${runtimeConfig.apiBaseUrl}/devices/heartbeat`, {
     method: "POST",
-    headers: buildJsonHeaders(input.sessionToken),
+    headers: buildJsonHeaders(input.sessionCookie),
     body: JSON.stringify({ activationId: input.activationId, cliVersion: input.appVersion }),
+    timeoutMs: 10000,
+    retries: 1,
   });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || "Falha no heartbeat do Hydra Cyber");
-  }
-
-  return response.json() as Promise<DeviceHeartbeatResponse>;
+  return data.heartbeat;
 }
 
 export async function fetchReleaseManifest() {
-  const response = await fetch(runtimeConfig.releasesBaseUrl, {
+  const data = await requestJson<ReleaseManifestEnvelope>(runtimeConfig.releasesBaseUrl, {
     headers: buildJsonHeaders(),
+    timeoutMs: 10000,
+    retries: 1,
   });
-
-  if (!response.ok) {
-    throw new Error("Falha ao consultar releases do Hydra Cyber");
-  }
-
-  return response.json() as Promise<ReleaseManifestItem[]>;
+  return data.releases;
 }
