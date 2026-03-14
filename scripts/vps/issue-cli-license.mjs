@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 
