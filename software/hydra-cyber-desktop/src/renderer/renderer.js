@@ -28,6 +28,14 @@ const ui = {
 let downloadPollTimer = null;
 let lastInstallGuide = null;
 
+function desktopApi() {
+  const api = window.hydraDesktop;
+  if (!api) {
+    throw new Error("Bridge do desktop indisponível. Reinstale/atualize para a build mais recente.");
+  }
+  return api;
+}
+
 function log(message, payload) {
   const line = payload ? `${message}\n${JSON.stringify(payload, null, 2)}` : message;
   const now = new Date().toLocaleTimeString();
@@ -45,7 +53,7 @@ function renderStatus(status) {
 }
 
 async function refreshStatus() {
-  const status = await window.hydraDesktop.getStatus();
+  const status = await desktopApi().getStatus();
   renderStatus(status);
   return status;
 }
@@ -63,33 +71,34 @@ async function guarded(name, task) {
 }
 
 ui.btnRefreshStatus.addEventListener("click", () => void guarded("status", refreshStatus));
-ui.btnHeartbeat.addEventListener("click", () => void guarded("heartbeat", () => window.hydraDesktop.heartbeatOnce()));
-ui.btnDoctor.addEventListener("click", () => void guarded("doctor", () => window.hydraDesktop.doctor()));
-ui.btnSelfTest.addEventListener("click", () => void guarded("self-test", () => window.hydraDesktop.runSelfTest()));
+ui.btnHeartbeat.addEventListener("click", () => void guarded("heartbeat", () => desktopApi().heartbeatOnce()));
+ui.btnDoctor.addEventListener("click", () => void guarded("doctor", () => desktopApi().doctor()));
+ui.btnSelfTest.addEventListener("click", () => void guarded("self-test", () => desktopApi().runSelfTest()));
 
 ui.btnLogin.addEventListener("click", () => {
   const email = ui.loginEmail.value.trim();
   const password = ui.loginPassword.value;
-  void guarded("login", () => window.hydraDesktop.login(email, password));
+  void guarded("login", () => desktopApi().login(email, password));
 });
 
-ui.btnWhoami.addEventListener("click", () => void guarded("whoami", () => window.hydraDesktop.whoami()));
-ui.btnLogout.addEventListener("click", () => void guarded("logout", () => window.hydraDesktop.logout()));
+ui.btnWhoami.addEventListener("click", () => void guarded("whoami", () => desktopApi().whoami()));
+ui.btnLogout.addEventListener("click", () => void guarded("logout", () => desktopApi().logout()));
 
 ui.btnActivate.addEventListener("click", () => {
   const licenseCode = ui.licenseCode.value.trim();
-  void guarded("activate", () => window.hydraDesktop.activateLicense(licenseCode));
+  void guarded("activate", () => desktopApi().activateLicense(licenseCode));
 });
 
 ui.btnStartRuntime.addEventListener("click", () => {
   const licenseCode = ui.licenseCode.value.trim();
-  void guarded("runtime:start", () => window.hydraDesktop.startRuntime(licenseCode || undefined));
+  void guarded("runtime:start", () => desktopApi().startRuntime(licenseCode || undefined));
 });
 
-ui.btnStopRuntime.addEventListener("click", () => void guarded("runtime:stop", () => window.hydraDesktop.stopRuntime()));
+ui.btnStopRuntime.addEventListener("click", () => void guarded("runtime:stop", () => desktopApi().stopRuntime()));
 
 ui.btnReleases.addEventListener("click", async () => {
-  const data = await guarded("releases", () => window.hydraDesktop.listReleases());
+  const data = await guarded("releases", () => desktopApi().listReleases());
+  if (!data) return;
   ui.releases.innerHTML = "";
   ui.recommendedRelease.innerHTML = "";
 
@@ -125,7 +134,7 @@ ui.btnReleases.addEventListener("click", async () => {
 
 ui.btnCheckUpdates.addEventListener("click", () => {
   void guarded("updates", async () => {
-    const data = await window.hydraDesktop.checkForUpdates();
+    const data = await desktopApi().checkForUpdates();
     ui.recommendedRelease.innerHTML = `
       <div><strong>Versão atual:</strong> ${data.currentVersion}</div>
       <div><strong>Target:</strong> ${data.target}</div>
@@ -171,16 +180,16 @@ function renderInstallGuide(guide) {
 ui.btnDownloadRecommended.addEventListener("click", () => {
   void guarded("download:recommended", async () => {
     stopDownloadPolling();
-    const initial = await window.hydraDesktop.startDownloadRecommended();
+    const initial = await desktopApi().startDownloadRecommended();
     renderDownloadStatus(initial);
 
     downloadPollTimer = setInterval(() => {
-      void window.hydraDesktop.getDownloadStatus().then(async (status) => {
+      void desktopApi().getDownloadStatus().then(async (status) => {
         renderDownloadStatus(status);
         if (status.status === "completed") {
           stopDownloadPolling();
           if (status.filePath) {
-            await window.hydraDesktop.openPath(status.filePath);
+            await desktopApi().openPath(status.filePath);
           }
         }
         if (status.status === "failed") {
@@ -198,7 +207,7 @@ ui.btnDownloadRecommended.addEventListener("click", () => {
 
 ui.btnInstallGuide.addEventListener("click", () => {
   void guarded("install:guide", async () => {
-    const guide = await window.hydraDesktop.getInstallGuide();
+    const guide = await desktopApi().getInstallGuide();
     lastInstallGuide = guide;
     renderInstallGuide(guide);
     return guide;
@@ -210,7 +219,7 @@ ui.btnCopyInstallCommand.addEventListener("click", () => {
     if (!lastInstallGuide?.command) {
       throw new Error("Carregue o guia de instalação antes de copiar o comando");
     }
-    await window.hydraDesktop.copyText(lastInstallGuide.command);
+    await desktopApi().copyText(lastInstallGuide.command);
     return { copied: true, command: lastInstallGuide.command };
   });
 });
@@ -222,4 +231,15 @@ void refreshStatus().catch((error) => {
     <p><strong>Detalhe:</strong> falha ao carregar status inicial</p>
   `;
 });
+
+if (!window.hydraDesktop) {
+  log("bridge:init FALHA", {
+    error: "window.hydraDesktop não foi exposto pelo preload",
+  });
+  ui.statusBox.innerHTML = `
+    <p><strong>Status:</strong> bridge indisponível</p>
+    <p><strong>Ação:</strong> baixe a build mais recente do app</p>
+  `;
+}
+
 log("Hydra Cyber Desktop UI inicializada");
