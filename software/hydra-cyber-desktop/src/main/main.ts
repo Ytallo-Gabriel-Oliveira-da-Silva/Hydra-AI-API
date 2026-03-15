@@ -21,7 +21,7 @@ let runtimeStopped = true;
 let runtimeFailureCount = 0;
 
 function createWindow() {
-  const preloadPath = join(__dirname, "preload.js");
+  const preloadPath = join(__dirname, "preload.cjs");
   const htmlPath = join(__dirname, "..", "renderer", "index.html");
 
   mainWindow = new BrowserWindow({
