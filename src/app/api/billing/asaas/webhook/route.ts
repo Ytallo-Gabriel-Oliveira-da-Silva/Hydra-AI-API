@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fulfillPaymentTransaction } from "@/lib/payment-fulfillment";
+import { securityAuditLog } from "@/lib/security-audit";
 
 const db = prisma as any;
 
@@ -109,6 +110,17 @@ async function findTransactionByCheckoutId(checkoutId: string) {
 export async function POST(req: NextRequest) {
   try {
     if (!isAuthorized(req)) {
+      securityAuditLog({
+        event: "billing.asaas_webhook.unauthorized",
+        level: "warn",
+        req,
+        details: {
+          hasConfiguredToken: Boolean(process.env.ASAAS_WEBHOOK_TOKEN),
+          hasAsaasAccessTokenHeader: Boolean(req.headers.get("asaas-access-token")),
+          hasXAsaasAccessTokenHeader: Boolean(req.headers.get("x-asaas-access-token")),
+        },
+      });
+
       return NextResponse.json(
         {
           error: process.env.ASAAS_WEBHOOK_TOKEN
@@ -127,11 +139,26 @@ export async function POST(req: NextRequest) {
     if ((event || "").toUpperCase().startsWith("CHECKOUT_")) {
       const checkoutId = checkout?.id?.trim();
       if (!checkoutId) {
+        securityAuditLog({
+          event: "billing.asaas_webhook.checkout_missing_id",
+          level: "warn",
+          req,
+          details: { event: event || null },
+        });
         return NextResponse.json({ ok: true, ignored: true, reason: "checkout.id ausente" });
       }
 
       const transaction = await findTransactionByCheckoutId(checkoutId);
       if (!transaction) {
+        securityAuditLog({
+          event: "billing.asaas_webhook.checkout_not_found",
+          level: "warn",
+          req,
+          details: {
+            event: event || null,
+            checkoutId,
+          },
+        });
         return NextResponse.json({ ok: true, ignored: true, reason: "checkout não encontrado" });
       }
 
@@ -189,11 +216,30 @@ export async function POST(req: NextRequest) {
     const reference = payment?.externalReference?.trim();
 
     if (!reference) {
+      securityAuditLog({
+        event: "billing.asaas_webhook.reference_missing",
+        level: "warn",
+        req,
+        details: {
+          event: event || null,
+          paymentId: payment?.id || null,
+        },
+      });
       return NextResponse.json({ ok: true, ignored: true, reason: "externalReference ausente" });
     }
 
     const transaction = await findTransaction(reference, payment?.id);
     if (!transaction) {
+      securityAuditLog({
+        event: "billing.asaas_webhook.transaction_not_found",
+        level: "warn",
+        req,
+        details: {
+          event: event || null,
+          reference,
+          paymentId: payment?.id || null,
+        },
+      });
       return NextResponse.json({ ok: true, ignored: true, reason: "transação não encontrada" });
     }
 
@@ -254,6 +300,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ignored: true, reason: "evento sem ação" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao processar webhook da Asaas";
+    securityAuditLog({
+      event: "billing.asaas_webhook.error",
+      level: "error",
+      req,
+      details: {
+        reason: message,
+      },
+    });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

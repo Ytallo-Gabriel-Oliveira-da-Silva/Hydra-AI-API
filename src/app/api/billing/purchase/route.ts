@@ -17,6 +17,7 @@ import { requireSurfaceAppUrl, type AppSurface } from "@/lib/app-url";
 import { assertHydraCyberReady } from "@/lib/hydra-cyber";
 import { serializeBillingTransaction } from "@/lib/payment-fulfillment";
 import { evaluateRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { securityAuditLog } from "@/lib/security-audit";
 
 const db = prisma as any;
 
@@ -73,8 +74,13 @@ function getProductDefinition(category: "api_credit" | "cli_license", productId:
 }
 
 export async function POST(req: NextRequest) {
+  let auditUserId: string | undefined;
+  let auditCategory: string | undefined;
+  let auditProductId: string | undefined;
+  let auditPaymentMethod: string | undefined;
   try {
     const user = await requireUser(req);
+    auditUserId = user.id;
     const ip = getRequestIp(req);
     const purchaseLimit = evaluateRateLimit({
       key: `purchase:${user.id}:${ip}`,
@@ -83,6 +89,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (!purchaseLimit.allowed) {
+      securityAuditLog({
+        event: "billing.purchase.rate_limited",
+        level: "warn",
+        req,
+        userId: user.id,
+        details: {
+          retryAfterMs: purchaseLimit.retryAfterMs,
+          maxAttempts: 12,
+          windowMs: 10 * 60 * 1000,
+        },
+      });
+
       return NextResponse.json(
         { error: "Muitas tentativas de checkout em pouco tempo. Aguarde e tente novamente." },
         {
@@ -96,6 +114,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const parsed = schema.parse(body);
+    auditCategory = parsed.category;
+    auditProductId = parsed.productId;
+    auditPaymentMethod = parsed.paymentMethod;
     const compliance = parsed.category === "cli_license" ? await assertHydraCyberReady(user.id) : null;
     const product = getProductDefinition(parsed.category, parsed.productId);
 
@@ -116,6 +137,20 @@ export async function POST(req: NextRequest) {
         pixCode: null,
         expiresAt: null,
         metadata: JSON.stringify({ externalReference: null }),
+      },
+    });
+
+    securityAuditLog({
+      event: "billing.purchase.transaction_created",
+      level: "info",
+      req,
+      userId: user.id,
+      details: {
+        transactionId: transaction.id,
+        category: parsed.category,
+        productId: parsed.productId,
+        paymentMethod: parsed.paymentMethod,
+        amount: product.amount,
       },
     });
 
@@ -207,6 +242,19 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const status = error instanceof ApiError ? error.status : 400;
     const message = error instanceof Error ? error.message : "Erro ao iniciar compra";
+    securityAuditLog({
+      event: "billing.purchase.failed",
+      level: "warn",
+      req,
+      userId: auditUserId,
+      details: {
+        category: auditCategory,
+        productId: auditProductId,
+        paymentMethod: auditPaymentMethod,
+        status,
+        reason: message,
+      },
+    });
     return NextResponse.json({ error: message }, { status });
   }
 }
