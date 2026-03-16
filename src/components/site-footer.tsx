@@ -61,6 +61,29 @@ export function SiteFooter({ tone = "default" }: SiteFooterProps) {
         </div>
       </div>
 
+      <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-4">
+        <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Lançamento</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-200">
+            Estamos no Product Hunt. Apoie o lançamento para ampliar a visibilidade da Hydra AI.
+          </p>
+          <a
+            href="https://www.producthunt.com/products/hydra-ai-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hydra-ai-2"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hydra AI no Product Hunt"
+            className="transition hover:opacity-90"
+          >
+            <img
+              alt="Hydra AI - Hydra AI — Automatizando o Futuro do Desenvolvimento. | Product Hunt"
+              width="250"
+              height="54"
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1099152&theme=dark&t=1773624084487"
+            />
+          </a>
+        </div>
+      </div>
+
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5 text-xs text-slate-400">
         <span>© 2026 HYDRA AI. Todos os direitos reservados.</span>
         <span>Infraestrutura, cobrança e experiência visual integradas à plataforma.</span>

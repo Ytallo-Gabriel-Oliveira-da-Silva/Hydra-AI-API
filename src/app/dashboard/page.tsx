@@ -1427,10 +1427,30 @@ export default function DashboardPage() {
       </div>
 
       <footer className="border-t border-white/10 bg-black/20 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-5 text-xs text-slate-400 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+            <p className="text-xs text-slate-300">Apoie o lançamento da Hydra AI no Product Hunt.</p>
+            <a
+              href="https://www.producthunt.com/products/hydra-ai-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-hydra-ai-2"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Hydra AI no Product Hunt"
+              className="transition hover:opacity-90"
+            >
+              <img
+                alt="Hydra AI - Hydra AI — Automatizando o Futuro do Desenvolvimento. | Product Hunt"
+                width="250"
+                height="54"
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1099152&theme=dark&t=1773624084487"
+              />
+            </a>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <p>HYDRA AI Workspace</p>
           <p>Painel multimodal com histórico persistente, mídia integrada e operações centralizadas.</p>
           <p>{new Date().getFullYear()} HYDRA AI</p>
+          </div>
         </div>
       </footer>
 
