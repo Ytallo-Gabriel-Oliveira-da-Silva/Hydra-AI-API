@@ -11,6 +11,10 @@
     "db:seed": "prisma db seed",
     "admin:issue-cli-license": "node scripts/vps/issue-cli-license.mjs",
     "admin:test-api-credits": "node scripts/vps/test-api-credits.mjs",
+    "admin:test-main-plan": "node scripts/vps/test-main-plan.mjs",
+    "admin:test-main-plus": "node scripts/vps/test-main-plan.mjs --plan plus",
+    "admin:test-main-pro": "node scripts/vps/test-main-plan.mjs --plan pro",
+    "admin:test-main-annual": "node scripts/vps/test-main-plan.mjs --plan annual",
     "admin:test-cyber": "node scripts/vps/test-cyber-access.mjs",
     "admin:test-cli": "node scripts/vps/test-cli-access.mjs"
   },

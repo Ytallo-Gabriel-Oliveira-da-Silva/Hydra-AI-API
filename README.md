@@ -187,11 +187,47 @@ Opcoes principais:
 - `--amount-cents` (padrao: `0`)
 - `--force-new-license`
 
+### 5) Plano Hydra principal por email (plus, pro e anual)
+
+Use os atalhos por plano:
+
+```bash
+npm run admin:test-main-plus -- --email "conta@dominio.com"
+npm run admin:test-main-pro -- --email "conta@dominio.com"
+npm run admin:test-main-annual -- --email "conta@dominio.com"
+```
+
+Ou use o comando generico:
+
+```bash
+npm run admin:test-main-plan -- --email "conta@dominio.com" --plan plus
+```
+
+O que faz:
+
+- muda o plano da conta no Hydra principal (`hydra-ai.shop`)
+- atualiza `currentPeriodEndsAt` conforme o ciclo do plano (mensal ou anual)
+- cria `paymentTransaction` de teste com status `paid` para manter rastreio de billing
+
+Opcoes principais:
+
+- `--email` (obrigatorio)
+- `--plan` (`plus`, `pro`, `annual`) no comando generico
+
 ### Exemplos rapidos
 
 ```bash
 # API: colocar 50k creditos ficticios
 npm run admin:test-api-credits -- --email "qa-api@hydra-ai.shop"
+
+# Hydra principal: trocar plano para Plus
+npm run admin:test-main-plus -- --email "qa-main@hydra-ai.shop"
+
+# Hydra principal: trocar plano para Pro
+npm run admin:test-main-pro -- --email "qa-main@hydra-ai.shop"
+
+# Hydra principal: trocar plano para Anual
+npm run admin:test-main-annual -- --email "qa-main@hydra-ai.shop"
 
 # Cyber: licenca + recarga, criando nova licenca sempre
 npm run admin:test-cyber -- --email "qa-cyber@hydra-ai.shop" --force-new-license
