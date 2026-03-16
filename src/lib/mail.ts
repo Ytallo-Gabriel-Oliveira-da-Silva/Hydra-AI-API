@@ -73,7 +73,10 @@ export async function sendSupportTicketEmail({
   subject,
   message,
   category,
+  ticketCode,
+  source,
   origin,
+  supportLink,
   ip,
 }: {
   name: string;
@@ -81,7 +84,10 @@ export async function sendSupportTicketEmail({
   subject: string;
   message: string;
   category: string;
+  ticketCode: string;
+  source: "hydra" | "api" | "cli" | "cyber";
   origin: string;
+  supportLink: string;
   ip: string;
 }) {
   const transporter = getTransport();
@@ -91,12 +97,15 @@ export async function sendSupportTicketEmail({
     from: supportEmail,
     to: supportEmail,
     replyTo: email,
-    subject: `[HYDRA suporte] ${subject}`,
+    subject: `[HYDRA suporte] ${ticketCode} · ${subject}`,
     text: [
+      `Ticket: ${ticketCode}`,
       `Nome: ${name}`,
       `E-mail: ${email}`,
       `Categoria: ${category}`,
+      `Origem do site: ${source}`,
       `Origem: ${origin}`,
+      `Link de suporte: ${supportLink}`,
       `IP: ${ip}`,
       "",
       message,
@@ -104,13 +113,46 @@ export async function sendSupportTicketEmail({
     html: `
       <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a">
         <h2 style="margin:0 0 16px">Novo pedido de suporte</h2>
+        <p><strong>Ticket:</strong> ${ticketCode}</p>
         <p><strong>Nome:</strong> ${name}</p>
         <p><strong>E-mail:</strong> ${email}</p>
         <p><strong>Categoria:</strong> ${category}</p>
+        <p><strong>Origem do site:</strong> ${source}</p>
         <p><strong>Origem:</strong> ${origin}</p>
+        <p><strong>Link:</strong> <a href="${supportLink}">${supportLink}</a></p>
         <p><strong>IP:</strong> ${ip}</p>
         <hr style="margin:24px 0;border:none;border-top:1px solid #cbd5e1" />
         <pre style="white-space:pre-wrap;font-family:Arial,sans-serif">${message}</pre>
+      </div>
+    `,
+  });
+
+  await transporter.sendMail({
+    from: supportEmail,
+    to: email,
+    replyTo: supportEmail,
+    subject: `HYDRA suporte recebido · ${ticketCode}`,
+    text: [
+      `Olá, ${name}.`,
+      "",
+      "Recebemos seu pedido de suporte com sucesso.",
+      `Código do ticket: ${ticketCode}`,
+      `Canal/origem: ${source}`,
+      "",
+      "Nosso suporte retornará para este e-mail cadastrado no formulário.",
+      `Central de suporte: ${supportLink}`,
+      `Contato: ${supportEmail}`,
+    ].join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;color:#0f172a">
+        <h2 style="margin:0 0 14px">Chamado recebido com sucesso</h2>
+        <p>Olá, <strong>${name}</strong>.</p>
+        <p>Seu chamado foi registrado com o código:</p>
+        <p style="font-size:18px;font-weight:700;color:#0f766e">${ticketCode}</p>
+        <p>Nossa equipe vai retornar para este e-mail cadastrado no formulário.</p>
+        <p><strong>Canal:</strong> ${source}</p>
+        <p><strong>Suporte:</strong> <a href="${supportLink}">${supportLink}</a></p>
+        <p style="margin-top:20px;color:#475569">HYDRA AI · ${supportEmail}</p>
       </div>
     `,
   });

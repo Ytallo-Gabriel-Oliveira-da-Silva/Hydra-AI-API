@@ -15,12 +15,14 @@ export default function SupportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [ticketCode, setTicketCode] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+    setTicketCode(null);
 
     try {
       const res = await fetch("/api/support", {
@@ -31,6 +33,7 @@ export default function SupportPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Erro ao enviar suporte");
       setSuccess(data.message || "Pedido enviado ao suporte.");
+      setTicketCode(typeof data.ticketCode === "string" ? data.ticketCode : null);
       setMessage("");
       setSubject("");
     } catch (err) {
@@ -75,7 +78,13 @@ export default function SupportPage() {
             </div>
 
             {error && <p className="md:col-span-2 text-sm text-rose-300">{error}</p>}
-            {success && <p className="md:col-span-2 text-sm text-emerald-300">{success}</p>}
+            {success && (
+              <div className="md:col-span-2 rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                <p>{success}</p>
+                {ticketCode && <p className="mt-1 font-semibold">Código do ticket: {ticketCode}</p>}
+                <p className="mt-1">O retorno será enviado para o e-mail cadastrado no formulário.</p>
+              </div>
+            )}
 
             <div className="md:col-span-2 flex flex-wrap items-center gap-3">
               <button disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60">

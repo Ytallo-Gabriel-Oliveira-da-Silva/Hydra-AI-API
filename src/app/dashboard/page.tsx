@@ -25,6 +25,7 @@ import {
   Sparkles,
   TerminalSquare,
   User,
+  LifeBuoy,
   Wand2,
   Workflow,
   X,
@@ -1013,6 +1014,14 @@ export default function DashboardPage() {
                   <span className="text-left">Tema: {theme.label}</span>
                   <Sparkles className="h-4 w-4 text-amber-300" />
                 </button>
+
+                <Link
+                  href="/support"
+                  className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-400/15 sm:min-h-[72px]"
+                >
+                  <LifeBuoy className="h-4 w-4" />
+                  <span className="text-left">Suporte</span>
+                </Link>
 
                 <div className="md:col-span-2 grid gap-3 md:grid-cols-2">
                   <div className="flex min-h-[60px] items-center justify-center rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
