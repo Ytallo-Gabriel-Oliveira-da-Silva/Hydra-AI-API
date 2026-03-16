@@ -26,6 +26,7 @@ function getRequestHostname(req: NextRequest) {
 function resolveSurfacePath(req: NextRequest) {
   const hostname = getRequestHostname(req);
   if (hostname.startsWith("api.")) return "/api-panel";
+  if (hostname.startsWith("cli.")) return "/cli-panel";
   if (hostname.startsWith("cyber.")) return "/cli-panel";
   return null;
 }

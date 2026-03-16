@@ -9,7 +9,10 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "admin:issue-cli-license": "node scripts/vps/issue-cli-license.mjs"
+    "admin:issue-cli-license": "node scripts/vps/issue-cli-license.mjs",
+    "admin:test-api-credits": "node scripts/vps/test-api-credits.mjs",
+    "admin:test-cyber": "node scripts/vps/test-cyber-access.mjs",
+    "admin:test-cli": "node scripts/vps/test-cli-access.mjs"
   },
   "dependencies": {
     "@fal-ai/client": "^1.9.4",

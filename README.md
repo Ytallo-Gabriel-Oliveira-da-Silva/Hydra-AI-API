@@ -100,10 +100,105 @@ Video usa PIAPI com `sora2-pro-video`, resolucao fixa em `720p` e duracao limita
 O middleware reescreve automaticamente a raiz de cada host:
 
 - `api.hydra-ai.shop/` -> `/api-panel`
-- `cyber.hydra-ai.shop/` -> `/cyber-panel`
+- `cyber.hydra-ai.shop/` -> `/cli-panel`
 - `cli.hydra-ai.shop/` -> `/cli-panel`
 
 Isso permite publicar uma unica aplicacao Next.js atras de um proxy reverso e expor experiencias separadas por subdominio.
+
+## Comandos admin de teste
+
+Os comandos abaixo foram feitos para testes internos com recarga/licenca ficticia, mas gravando em wallet, ledger, transacoes e licenca como no fluxo real.
+
+Cada execucao pode ser repetida quantas vezes quiser (uso infinito para QA), sempre com novo evento de recarga e atualizacao do saldo.
+
+### 1) Emitir licenca CLI (comando ja existente)
+
+```bash
+npm run admin:issue-cli-license -- --email "conta@dominio.com" --tier cli-pro
+```
+
+O que faz:
+
+- procura a conta por email
+- emite (ou reaproveita) uma licenca Hydra CLI/Cyber
+- retorna o codigo da licenca no terminal
+
+Opcoes principais:
+
+- `--email` (obrigatorio)
+- `--tier` (`cli-starter`, `cli-pro`, `cli-team`, `cli-enterprise`)
+- `--status` (padrao: `active`)
+
+### 2) Recarga ficticia para API (padrao 50.000 creditos)
+
+```bash
+npm run admin:test-api-credits -- --email "conta@dominio.com"
+```
+
+O que faz:
+
+- credita `50000` na wallet da conta
+- cria `paymentTransaction` de teste (status `paid`)
+- cria `creditLedgerEntry` vinculado
+- atualiza saldo em `creditWallet`
+
+Opcoes principais:
+
+- `--email` (obrigatorio)
+- `--credits` (padrao: `50000`)
+- `--amount-cents` (padrao: `0`, para manter como recarga ficticia)
+
+### 3) Teste completo Cyber (licenca + recarga)
+
+```bash
+npm run admin:test-cyber -- --email "conta@dominio.com"
+```
+
+O que faz:
+
+- garante licenca ativa para a conta (reaproveita se ja existir valida)
+- adiciona recarga ficticia (padrao `50000` creditos)
+- grava transacao/ledger/wallet para validar todo o fluxo do dashboard
+
+Opcoes principais:
+
+- `--email` (obrigatorio)
+- `--tier` (padrao: `cli-pro`)
+- `--credits` (padrao: `50000`)
+- `--amount-cents` (padrao: `0`)
+- `--force-new-license` (quando presente, cria nova licenca mesmo havendo uma ativa)
+
+### 4) Teste completo CLI (licenca + recarga)
+
+```bash
+npm run admin:test-cli -- --email "conta@dominio.com"
+```
+
+O que faz:
+
+- mesma ideia do comando Cyber, mas marcado como superficie CLI
+- garante licenca + recarga ficticia para testes fim a fim
+
+Opcoes principais:
+
+- `--email` (obrigatorio)
+- `--tier` (padrao: `cli-pro`)
+- `--credits` (padrao: `50000`)
+- `--amount-cents` (padrao: `0`)
+- `--force-new-license`
+
+### Exemplos rapidos
+
+```bash
+# API: colocar 50k creditos ficticios
+npm run admin:test-api-credits -- --email "qa-api@hydra-ai.shop"
+
+# Cyber: licenca + recarga, criando nova licenca sempre
+npm run admin:test-cyber -- --email "qa-cyber@hydra-ai.shop" --force-new-license
+
+# CLI: licenca enterprise + 120k creditos ficticios
+npm run admin:test-cli -- --email "qa-cli@hydra-ai.shop" --tier cli-enterprise --credits 120000
+```
 
 ## Deploy na Vercel
 
