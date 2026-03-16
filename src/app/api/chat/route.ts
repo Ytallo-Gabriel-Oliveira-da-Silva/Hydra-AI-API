@@ -195,7 +195,51 @@ async function getConversationContext(userId: string, conversationId?: string) {
   return (conversation?.messages || [])
     .slice()
     .reverse()
-    .map((message) => ({ role: message.role, content: message.content }));
+    .map((message) => {
+      const media = parseMediaMessage(message.content);
+      if (media?.kind === "image") {
+        return { role: message.role, content: `Imagem gerada anteriormente com prompt: ${media.prompt}` };
+      }
+      if (media?.kind === "audio") {
+        return { role: message.role, content: `Áudio gerado anteriormente com texto: ${media.text}` };
+      }
+      if (media?.kind === "video") {
+        return { role: message.role, content: `Vídeo gerado anteriormente com prompt: ${media.prompt}` };
+      }
+
+      const normalized = message.content.replace(/\s+/g, " ").trim();
+      const maxCharsPerMessage = 1200;
+      return {
+        role: message.role,
+        content: normalized.length > maxCharsPerMessage
+          ? `${normalized.slice(0, maxCharsPerMessage - 1)}…`
+          : normalized,
+      };
+    });
+}
+
+function fitMessagesForGroq(messages: { role: string; content: string }[]) {
+  if (messages.length === 0) return messages;
+
+  const system = messages[0]?.role === "system" ? messages[0] : null;
+  const rest = system ? messages.slice(1) : messages.slice();
+  const maxContextMessages = 10;
+  const trimmedRest = rest.slice(-maxContextMessages);
+  const output = system ? [system, ...trimmedRest] : trimmedRest;
+
+  const maxTotalChars = 15000;
+  const countChars = (items: { role: string; content: string }[]) =>
+    items.reduce((sum, item) => sum + item.content.length, 0);
+
+  while (output.length > (system ? 2 : 1) && countChars(output) > maxTotalChars) {
+    output.splice(system ? 1 : 0, 1);
+  }
+
+  if (system && output[0].content.length > 3500) {
+    output[0] = { ...output[0], content: `${output[0].content.slice(0, 3499)}…` };
+  }
+
+  return output;
 }
 
 function systemPrompt(country: string, context: {
@@ -227,7 +271,23 @@ async function generateChatReply(messages: { role: string; content: string }[]) 
     throw new ApiError("GROQ_API_KEY ausente", 500);
   }
 
-  return groqChat(messages);
+  const compact = fitMessagesForGroq(messages);
+
+  try {
+    return await groqChat(compact);
+  } catch (error) {
+    const text = error instanceof Error ? error.message : String(error);
+    const looksLikeLengthError =
+      /reduce the length|invalid_request_error|param\":\"messages\"|parâmetro.*messages|parametro.*messages/i.test(text);
+
+    if (!looksLikeLengthError) {
+      throw error;
+    }
+
+    const fallback = compact.filter((item) => item.role === "system").slice(0, 1);
+    const userOnly = compact.filter((item) => item.role === "user").slice(-1);
+    return groqChat([...fallback, ...userOnly]);
+  }
 }
 
 function buildMemoryContext(memories: { title: string; summary: string }[]) {
@@ -355,10 +415,13 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const status = err instanceof ApiError ? err.status : 400;
     const message = err instanceof Error ? err.message : "Erro no chat";
+    const isTooLong = /reduce the length|invalid_request_error|param\":\"messages\"|parâmetro.*messages|parametro.*messages/i.test(message);
     const friendly = status === 429
       ? "Limite do provider de IA atingido ou muitas requisições. Revise a conta Groq e tente novamente."
       : status === 402
         ? "O provider de IA recusou a cobrança desta requisição. Revise os créditos da conta Groq."
+        : isTooLong
+          ? "A conversa ficou muito longa para o provider de IA. Reduzi o contexto automaticamente; tente reenviar a mensagem."
         : message;
     return NextResponse.json({ error: friendly, raw: message }, { status });
   }
