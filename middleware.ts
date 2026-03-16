@@ -30,6 +30,19 @@ function resolveSurfacePath(req: NextRequest) {
   return null;
 }
 
+function applySecurityHeaders(res: NextResponse, req: NextRequest) {
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set("Permissions-Policy", "camera=(self), microphone=(self), geolocation=(), interest-cohort=()");
+
+  if (req.nextUrl.protocol === "https:" || process.env.NODE_ENV === "production") {
+    res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+
+  return res;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const surfaceBase = resolveSurfacePath(req);
@@ -38,26 +51,26 @@ export function middleware(req: NextRequest) {
   if (surfaceBase && pathname in surfaceBareRoutes) {
     if (pathname === "/dashboard" && !hasSession) {
       const loginUrl = new URL("/login", req.url);
-      return NextResponse.redirect(loginUrl);
+      return applySecurityHeaders(NextResponse.redirect(loginUrl), req);
     }
 
     const targetPath = `${surfaceBase}${surfaceBareRoutes[pathname]}`;
     if (pathname !== targetPath) {
       const url = req.nextUrl.clone();
       url.pathname = targetPath;
-      return NextResponse.rewrite(url);
+      return applySecurityHeaders(NextResponse.rewrite(url), req);
     }
   }
 
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
-  if (!isProtected) return NextResponse.next();
+  if (!isProtected) return applySecurityHeaders(NextResponse.next(), req);
 
   if (!hasSession) {
     const loginUrl = new URL("/login", req.url);
-    return NextResponse.redirect(loginUrl);
+    return applySecurityHeaders(NextResponse.redirect(loginUrl), req);
   }
 
-  return NextResponse.next();
+  return applySecurityHeaders(NextResponse.next(), req);
 }
 
 export const config = {

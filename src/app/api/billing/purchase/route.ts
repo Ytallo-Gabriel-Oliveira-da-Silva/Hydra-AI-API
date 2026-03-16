@@ -16,6 +16,7 @@ import {
 import { requireSurfaceAppUrl, type AppSurface } from "@/lib/app-url";
 import { assertHydraCyberReady } from "@/lib/hydra-cyber";
 import { serializeBillingTransaction } from "@/lib/payment-fulfillment";
+import { evaluateRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const db = prisma as any;
 
@@ -74,6 +75,25 @@ function getProductDefinition(category: "api_credit" | "cli_license", productId:
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
+    const ip = getRequestIp(req);
+    const purchaseLimit = evaluateRateLimit({
+      key: `purchase:${user.id}:${ip}`,
+      max: 12,
+      windowMs: 10 * 60 * 1000,
+    });
+
+    if (!purchaseLimit.allowed) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de checkout em pouco tempo. Aguarde e tente novamente." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil(purchaseLimit.retryAfterMs / 1000)),
+          },
+        },
+      );
+    }
+
     const body = await req.json();
     const parsed = schema.parse(body);
     const compliance = parsed.category === "cli_license" ? await assertHydraCyberReady(user.id) : null;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sendSupportTicketEmail } from "@/lib/mail";
+import { evaluateRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -46,12 +47,30 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const payload = schema.parse(body);
+    const ip = getRequestIp(req);
+    const supportLimit = evaluateRateLimit({
+      key: `support:${ip}:${payload.email.toLowerCase()}`,
+      max: 6,
+      windowMs: 30 * 60 * 1000,
+    });
+
+    if (!supportLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: "Muitos chamados enviados em pouco tempo. Aguarde e tente novamente.",
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil(supportLimit.retryAfterMs / 1000)),
+          },
+        },
+      );
+    }
+
     const source = detectSupportSource(req);
     const ticketCode = buildTicketCode(source);
     const supportLink = `${req.nextUrl.origin}/support`;
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || req.headers.get("x-real-ip")
-      || "unknown";
 
     await sendSupportTicketEmail({
       ...payload,

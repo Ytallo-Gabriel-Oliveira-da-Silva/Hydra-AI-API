@@ -24,9 +24,12 @@ type AsaasWebhookBody = {
 
 function isAuthorized(req: NextRequest) {
   const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN?.trim();
-  if (!expectedToken) return true;
+  if (!expectedToken) {
+    return process.env.NODE_ENV !== "production";
+  }
 
-  const providedToken = req.headers.get("asaas-access-token")?.trim();
+  const providedToken = req.headers.get("asaas-access-token")?.trim()
+    || req.headers.get("x-asaas-access-token")?.trim();
   return providedToken === expectedToken;
 }
 
@@ -106,7 +109,14 @@ async function findTransactionByCheckoutId(checkoutId: string) {
 export async function POST(req: NextRequest) {
   try {
     if (!isAuthorized(req)) {
-      return NextResponse.json({ error: "Webhook da Asaas não autorizado" }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: process.env.ASAAS_WEBHOOK_TOKEN
+            ? "Webhook da Asaas não autorizado"
+            : "ASaas webhook token ausente em produção",
+        },
+        { status: 401 },
+      );
     }
 
     const body = (await req.json()) as AsaasWebhookBody;
