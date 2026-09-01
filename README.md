@@ -1,5 +1,8 @@
 # Hydra AI API
 
+## Vídeos Lançamentos/Apresentação do Projeto
+`https://youtu.be/p1sBMYjmgBA?is=KzSKUG2tamQ3tmXl`
+
 Aplicacao Next.js com autenticacao, dashboard, billing, painel de API e painel de CLI no mesmo projeto.
 
 ## Superficies do produto
